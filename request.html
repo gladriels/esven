@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Request — Esven</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="header-wrap">
+  <header class="site-header">
+    <a href="index.html" class="logo">Esven</a>
+    <div id="auth-bar"></div>
+  </header>
+</div>
+
+<main>
+  <a href="index.html#feed-section" class="back-link">&larr; back to feed</a>
+
+  <section id="request-detail" class="request-detail">
+    <p class="empty-state">Loading...</p>
+  </section>
+
+  <section class="rec-form" id="rec-form-section" style="display:none;">
+    <h2 class="section-title">Recommend something</h2>
+    <form id="rec-form">
+      <div class="field-row">
+        <textarea id="rec-note" placeholder="What's your recommendation? Why does it fit?" required></textarea>
+      </div>
+      <div class="field-row">
+        <input type="url" id="rec-link" placeholder="Link (optional)" />
+      </div>
+      <div class="field-row">
+        <label class="upload-label" for="rec-image-file">
+          <span id="rec-upload-label-text">+ Add a photo</span>
+        </label>
+        <input type="file" id="rec-image-file" accept="image/*" style="display:none;" />
+      </div>
+      <img id="rec-image-preview" style="display:none;" />
+      <button type="submit" class="btn">Post recommendation</button>
+    </form>
+  </section>
+
+  <h2 class="section-title">Recommendations</h2>
+  <div id="rec-list" class="rec-list">
+    <p class="empty-state">Loading...</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/request.js"></script>
+</body>
+</html>
