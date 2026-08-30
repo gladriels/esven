@@ -568,6 +568,55 @@ textarea { resize: vertical; min-height: 70px; }
   overflow: hidden;
 }
 
+.sponsored-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.promote-box {
+  background: var(--card);
+  border: 1.5px dashed var(--accent);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.promote-hint {
+  font-size: 13px;
+  color: var(--accent);
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.promote-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(17,17,17,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+.promote-modal.open { display: flex; }
+
+.promote-modal-inner {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 26px;
+  max-width: 340px;
+  width: 100%;
+  position: relative;
+}
+
 .detail-image {
   width: 100%;
   max-height: 420px;

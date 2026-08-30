@@ -35,8 +35,9 @@ async function loadFeed() {
 
   const { data: requests, error } = await supabase
     .from("requests")
-    .select("id, title, description, budget, category, audience, spotify_url, image_url, user_id, created_at, profiles(username)")
+    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, user_id, created_at, profiles(username)")
     .eq("status", "open")
+    .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -110,6 +111,7 @@ function renderFeed() {
   board.innerHTML = filtered.map(r => `
     <div class="ticket-wrap">
       <a href="request.html#${r.id}" class="ticket">
+        ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
         ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
         ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
         <h3 class="ticket-title">${escapeHtml(r.title)}</h3>

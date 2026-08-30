@@ -154,6 +154,54 @@ Associates, Awin, Rakuten Advertising are good starting points), then paste
 your tag into that file. Any store you haven't configured is left alone —
 nothing breaks.
 
+## Monetization: promoted listings (QPay)
+
+Businesses can pay to have their listing marked "Sponsored" and pinned to
+the top of the feed. This uses QPay (Mongolia's payment platform) since
+Stripe doesn't operate in Mongolia.
+
+### 1. Get QPay merchant credentials
+Sign up for a QPay merchant account at https://qpay.mn (or contact them —
+this typically requires an agreement + a few business days for approval).
+Once approved, you'll get:
+- A Client ID and Client Secret (for API authentication)
+- An Invoice Code (identifies your merchant account when creating invoices)
+
+QPay also has a sandbox environment for testing before you're fully
+approved — ask them for sandbox credentials if you want to test the flow
+before going live.
+
+### 2. Add the database column
+Run in Supabase SQL Editor:
+
+```sql
+alter table requests add column is_sponsored boolean default false;
+```
+
+### 3. Set environment variables in Vercel
+Go to your Vercel project → Settings → Environment Variables, and add:
+
+- `QPAY_CLIENT_ID` — from QPay
+- `QPAY_CLIENT_SECRET` — from QPay
+- `QPAY_INVOICE_CODE` — from QPay
+- `QPAY_BASE_URL` — `https://merchant-sandbox.qpay.mn/v2` for testing,
+  `https://merchant.qpay.mn/v2` once live
+- `SUPABASE_URL` — same as in `js/supabase-client.js`
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase → Project Settings → API →
+  "service_role" key (NOT the anon/public one — this one is secret,
+  never put it in any file that goes in the git repo)
+- `SITE_URL` — your live site URL, e.g. `https://esven-seven.vercel.app`
+
+After adding these, redeploy (Vercel → Deployments → ⋯ → Redeploy) so the
+functions pick them up.
+
+### 4. How it works
+- Request owner taps "Promote this listing" on their request page
+- A QPay QR code appears — they scan it with any Mongolian banking app
+- Once paid, the listing is automatically marked sponsored and sorted to
+  the top of the feed
+- To change the price, edit `PROMOTION_PRICE_MNT` in `api/create-promotion.js`
+
 ## What's next after this MVP
 - Image upload (Supabase Storage) instead of pasted URLs
 - Notifications when someone recommends on your request

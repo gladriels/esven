@@ -38,7 +38,7 @@ async function loadRequest() {
 
   const { data: r, error } = await supabase
     .from("requests")
-    .select("id, title, description, budget, category, spotify_url, image_url, created_at, user_id, profiles(username)")
+    .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles(username)")
     .eq("id", requestId)
     .single();
 
@@ -194,8 +194,84 @@ async function initRecForm() {
   });
 }
 
+async function initPromoteBox() {
+  const box = document.getElementById("promote-box");
+  const hint = document.getElementById("promote-hint");
+  if (!currentRequest) return;
+
+  const user = await getCurrentUser();
+  const isOwner = user && user.id === currentRequest.user_id;
+  if (!isOwner) return;
+
+  if (currentRequest.is_sponsored) {
+    box.style.display = "block";
+    box.querySelector("#promote-btn").style.display = "none";
+    hint.textContent = "★ This listing is promoted.";
+    return;
+  }
+
+  box.style.display = "block";
+  document.getElementById("promote-btn").addEventListener("click", openPromoteModal);
+}
+
+async function openPromoteModal() {
+  const modal = document.getElementById("promote-modal");
+  const body = document.getElementById("promote-modal-body");
+  modal.classList.add("open");
+  body.innerHTML = `<p class="empty-state">Creating payment...</p>`;
+
+  try {
+    const res = await fetch("/api/create-promotion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      body.innerHTML = `<p class="empty-state">Couldn't start payment: ${escapeHtml(data.error || "unknown error")}</p>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <p style="text-align:center; margin-bottom:14px;">Scan with any Mongolian banking app — ${data.amount}₮</p>
+      <img src="data:image/png;base64,${data.qrImage}" alt="QPay QR code" style="width:220px; display:block; margin:0 auto 14px;" />
+      <p class="empty-state" id="promote-status">Waiting for payment...</p>
+    `;
+
+    pollPromotionStatus();
+  } catch (err) {
+    body.innerHTML = `<p class="empty-state">Couldn't start payment: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function pollPromotionStatus() {
+  const statusEl = document.getElementById("promote-status");
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/check-promotion?requestId=${requestId}`);
+      const data = await res.json();
+      if (data.isSponsored) {
+        clearInterval(interval);
+        if (statusEl) statusEl.textContent = "Payment received — listing is now promoted!";
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    } catch {
+      // keep polling silently
+    }
+  }, 3000);
+}
+
+function initPromoteModalClose() {
+  document.getElementById("promote-close-btn").addEventListener("click", () => {
+    document.getElementById("promote-modal").classList.remove("open");
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   await loadRequest();
   await loadRecommendations();
   initRecForm();
+  initPromoteBox();
+  initPromoteModalClose();
 });
