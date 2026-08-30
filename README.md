@@ -202,6 +202,12 @@ functions pick them up.
   the top of the feed
 - To change the price, edit `PROMOTION_PRICE_MNT` in `api/create-promotion.js`
 
+## 2e. Add profile pictures (run in SQL Editor, one-time)
+
+```sql
+alter table profiles add column avatar_url text;
+```
+
 ## What's next after this MVP
 - Image upload (Supabase Storage) instead of pasted URLs
 - Notifications when someone recommends on your request

@@ -35,7 +35,7 @@ async function loadFeed() {
 
   const { data: requests, error } = await supabase
     .from("requests")
-    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, user_id, created_at, profiles(username)")
+    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, user_id, created_at, profiles(username, avatar_url)")
     .eq("status", "open")
     .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
@@ -118,7 +118,7 @@ function renderFeed() {
         <p class="ticket-desc">${escapeHtml(r.description ?? "")}</p>
         ${r.spotify_url ? `<div class="ticket-song">&#9834; song attached</div>` : ""}
         <div class="ticket-footer">
-          <span>@${r.profiles?.username ?? "someone"}</span>
+          <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${r.profiles?.username ?? "someone"}</span>
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
         </div>
       </a>

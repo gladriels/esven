@@ -38,7 +38,7 @@ async function loadRequest() {
 
   const { data: r, error } = await supabase
     .from("requests")
-    .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles(username)")
+    .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles(username, avatar_url)")
     .eq("id", requestId)
     .single();
 
@@ -57,7 +57,7 @@ async function loadRequest() {
     <p>${escapeHtml(r.description ?? "")}</p>
     ${embed ? `<iframe class="spotify-embed" src="${embed}" width="100%" height="152" frameborder="0" allow="encrypted-media"></iframe>` : ""}
     <div class="request-meta">
-      <span>@${r.profiles?.username ?? "someone"}</span>
+      <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${r.profiles?.username ?? "someone"}</span>
       ${r.budget ? `<span class="ticket-budget">Budget: ${escapeHtml(r.budget)}</span>` : ""}
       <span>${new Date(r.created_at).toLocaleDateString()}</span>
     </div>
@@ -69,7 +69,7 @@ async function loadRecommendations() {
 
   const { data: recs, error } = await supabase
     .from("recommendations")
-    .select("id, note, link, image_url, is_favorite, created_at, user_id, profiles(username)")
+    .select("id, note, link, image_url, is_favorite, created_at, user_id, profiles(username, avatar_url)")
     .eq("request_id", requestId)
     .order("is_favorite", { ascending: false })
     .order("created_at", { ascending: false });
@@ -94,7 +94,7 @@ async function loadRecommendations() {
       <p class="rec-note">${escapeHtml(rec.note)}</p>
       ${rec.link ? `<a class="rec-link" href="${escapeHtml(rec.link)}" target="_blank" rel="noopener">${escapeHtml(rec.link)}</a>` : ""}
       <div class="rec-footer">
-        <span>@${rec.profiles?.username ?? "someone"}</span>
+        <span class="ticket-author">${rec.profiles?.avatar_url ? `<img src="${rec.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${rec.profiles?.username ?? "someone"}</span>
         <span class="rec-actions">
           ${isOwner && !rec.is_favorite ? `<button class="fav-btn" data-id="${rec.id}">Mark favorite</button>` : ""}
           ${user && user.id === rec.user_id ? `<button class="delete-rec-btn" data-id="${rec.id}">Delete</button>` : ""}
