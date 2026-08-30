@@ -145,6 +145,15 @@ Push to GitHub, import into Vercel, no build command needed — it's static file
 - `js/app.js` — feed page logic
 - `js/request.js` — request detail page logic
 
+## Monetization: affiliate links
+
+`js/affiliate-config.js` rewrites recommendation links to include your
+affiliate tracking ID before they're saved — earns you a commission on
+purchases, invisible to users. Sign up for an affiliate program (Amazon
+Associates, Awin, Rakuten Advertising are good starting points), then paste
+your tag into that file. Any store you haven't configured is left alone —
+nothing breaks.
+
 ## What's next after this MVP
 - Image upload (Supabase Storage) instead of pasted URLs
 - Notifications when someone recommends on your request

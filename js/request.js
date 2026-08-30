@@ -165,7 +165,7 @@ async function initRecForm() {
   document.getElementById("rec-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const note = document.getElementById("rec-note").value.trim();
-    const link = document.getElementById("rec-link").value.trim();
+    const link = applyAffiliateTag(document.getElementById("rec-link").value.trim());
     const file = document.getElementById("rec-image-file").files[0];
 
     let image_url = "";
