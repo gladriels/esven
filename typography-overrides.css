@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800&family=Montserrat:wght@400;500&display=swap');
+
+/* Post titles -> League Spartan */
+.ticket-title,
+.request-detail h1,
+.trending-title,
+.solved-title,
+.reel-item-title {
+  font-family: 'League Spartan', sans-serif !important;
+}
+
+/* Post detail/description text -> Montserrat */
+.ticket-desc,
+.request-detail p,
+.rec-note {
+  font-family: 'Montserrat', sans-serif !important;
+}
+
+/* Category tag -> bold */
+.ticket-cat {
+  font-weight: 700 !important;
+}
+
+/* Username -> Instagram-style (clean, semibold, tight tracking) */
+.ticket-author,
+.auth-user,
+.solved-sub,
+.rec-footer span:first-child {
+  font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  font-size: 13px !important;
+}
+
+/* Feed profile picture -> bigger, Instagram-feed size */
+.mini-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  margin-right: 8px !important;
+}
