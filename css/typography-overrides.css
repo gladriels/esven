@@ -1,13 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800&family=Montserrat:wght@400;500&display=swap');
 
-/* Post titles -> League Spartan */
+/* Post titles -> match "For Him/Her/Unisex" tile font exactly */
 .ticket-title,
 .request-detail h1,
 .trending-title,
 .solved-title,
 .reel-item-title {
-  font-family: 'League Spartan', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
 }
+
 
 /* Post detail/description text -> Montserrat */
 .ticket-desc,
