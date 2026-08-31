@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Profile — Esven</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .profile-hero {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 28px 0;
+    flex-wrap: wrap;
+  }
+  .profile-avatar-big {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--pill);
+    flex-shrink: 0;
+  }
+  .profile-avatar-big-empty { background: var(--accent); }
+  .profile-name {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+  }
+  .profile-stats-row {
+    display: flex;
+    gap: 22px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .profile-stats-row strong { color: var(--ink); }
+  .profile-section-title {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 16px;
+    margin: 32px 0 14px;
+  }
+  .profile-rec-list { display: flex; flex-direction: column; gap: 10px; }
+  .profile-rec-item {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .profile-rec-item:hover { border-color: var(--ink); }
+  .profile-rec-note { font-size: 13px; margin: 0 0 6px; }
+  .profile-rec-for { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header-wrap">
+  <header class="site-header">
+    <a href="index.html" class="logo">Esven</a>
+    <div id="auth-bar"></div>
+  </header>
+</div>
+
+<main>
+  <a href="index.html#feed-section" class="back-link">&larr; back to feed</a>
+
+  <div id="profile-hero-container">
+    <p class="empty-state">Loading...</p>
+  </div>
+
+  <h2 class="profile-section-title">Requests</h2>
+  <div id="profile-requests" class="board">
+    <p class="empty-state">Loading...</p>
+  </div>
+
+  <h2 class="profile-section-title">Recommendations</h2>
+  <div id="profile-recs" class="profile-rec-list">
+    <p class="empty-state">Loading...</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/profile.js"></script>
+</body>
+</html>
