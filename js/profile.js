@@ -6,6 +6,13 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function profileSpotifyEmbedUrl(url) {
+  if (!url) return null;
+  const match = url.match(/track\/([a-zA-Z0-9]+)/);
+  if (!match) return null;
+  return `https://open.spotify.com/embed/track/${match[1]}?utm_source=generator&theme=0`;
+}
+
 async function loadProfile() {
   const heroContainer = document.getElementById("profile-hero-container");
   const reqContainer = document.getElementById("profile-requests");
@@ -20,30 +27,33 @@ async function loadProfile() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url, created_at")
+    .select("id, username, avatar_url, created_at, bio, profile_spotify_url")
     .eq("username", profileUsername)
     .single();
 
   if (profileError || !profile) {
-    heroContainer.innerHTML = `<p class="empty-state">Couldn't find @${escapeHtml(profileUsername)}.</p>`;
+    heroContainer.innerHTML = `<p class="empty-state">Couldn't find @${escapeHtml(profileUsername)}${profileError ? `: ${escapeHtml(profileError.message)}` : ""}</p>`;
     reqContainer.innerHTML = "";
     recContainer.innerHTML = "";
     return;
   }
 
-  const [{ data: requests }, { data: recs }] = await Promise.all([
-    supabase
-      .from("requests")
-      .select("id, title, description, budget, category, image_url, spotify_url, created_at")
-      .eq("user_id", profile.id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("recommendations")
-      .select("id, note, created_at, request_id, requests(id, title)")
-      .eq("user_id", profile.id)
-      .order("created_at", { ascending: false })
-  ]);
+  const reqResult = await supabase
+    .from("requests")
+    .select("id, title, description, budget, category, image_url, spotify_url, created_at")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false });
 
+  const recResult = await supabase
+    .from("recommendations")
+    .select("id, note, created_at, request_id, requests(id, title)")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false });
+
+  const requests = reqResult.data;
+  const recs = recResult.data;
+
+  const songEmbed = profileSpotifyEmbedUrl(profile.profile_spotify_url);
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   heroContainer.innerHTML = `
@@ -60,9 +70,13 @@ async function loadProfile() {
         </div>
       </div>
     </div>
+    ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
+    ${songEmbed ? `<iframe class="spotify-embed" src="${songEmbed}" width="100%" height="80" frameborder="0" allow="encrypted-media"></iframe>` : ""}
   `;
 
-  if (!requests || !requests.length) {
+  if (reqResult.error) {
+    reqContainer.innerHTML = `<p class="empty-state">Couldn't load requests: ${escapeHtml(reqResult.error.message)}</p>`;
+  } else if (!requests || !requests.length) {
     reqContainer.innerHTML = `<p class="empty-state">No requests yet.</p>`;
   } else {
     reqContainer.innerHTML = requests.map(r => `
@@ -80,7 +94,9 @@ async function loadProfile() {
     `).join("");
   }
 
-  if (!recs || !recs.length) {
+  if (recResult.error) {
+    recContainer.innerHTML = `<p class="empty-state">Couldn't load recommendations: ${escapeHtml(recResult.error.message)}</p>`;
+  } else if (!recs || !recs.length) {
     recContainer.innerHTML = `<p class="empty-state">No recommendations yet.</p>`;
   } else {
     recContainer.innerHTML = recs.map(rec => `
