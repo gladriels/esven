@@ -80,7 +80,7 @@ async function loadProfile() {
     reqContainer.innerHTML = `<p class="empty-state">No requests yet.</p>`;
   } else {
     reqContainer.innerHTML = requests.map(r => `
-      <a href="request.html#${r.id}" class="ticket">
+      <a href="request.html#${r.id}" class="ticket reveal">
         ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
         ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
         <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
