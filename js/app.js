@@ -177,17 +177,39 @@ async function uploadRequestImage(user, file) {
   return data.publicUrl;
 }
 
+let croppedRequestImage = null;
+
+function openImageCropper(file, onCrop) {
+  const source = URL.createObjectURL(file);
+  const modal = document.createElement("div");
+  modal.className = "image-crop-modal";
+  modal.innerHTML = `<div class="image-crop-dialog"><h2>Crop your photo</h2><div class="image-crop-frame"><img src="${source}" alt="Crop preview"></div><div class="image-crop-actions"><button type="button" class="btn btn-ghost" data-crop-cancel>Cancel</button><button type="button" class="btn" data-crop-save>Use photo</button></div></div>`;
+  document.body.appendChild(modal);
+  const image = modal.querySelector("img");
+  image.onload = () => {
+    const frame = modal.querySelector(".image-crop-frame");
+    const crop = { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight };
+    const ratio = 16 / 10;
+    if (crop.width / crop.height > ratio) crop.width = crop.height * ratio;
+    else crop.height = crop.width / ratio;
+    crop.x = (image.naturalWidth - crop.width) / 2;
+    crop.y = (image.naturalHeight - crop.height) / 2;
+    modal.querySelector("[data-crop-save]").onclick = () => {
+      const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 800;
+      canvas.getContext("2d").drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => { onCrop(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" })); URL.revokeObjectURL(source); modal.remove(); }, "image/jpeg", .9);
+    };
+    modal.querySelector("[data-crop-cancel]").onclick = () => { URL.revokeObjectURL(source); modal.remove(); };
+  };
+}
+
 function initImagePreview() {
   const fileInput = document.getElementById("req-image-file");
   const preview = document.getElementById("req-image-preview");
   const labelText = document.getElementById("upload-label-text");
-
   fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = "block";
-    labelText.textContent = file.name;
+    const file = fileInput.files[0]; if (!file) return;
+    openImageCropper(file, cropped => { croppedRequestImage = cropped; preview.src = URL.createObjectURL(cropped); preview.style.display = "block"; labelText.textContent = "Photo cropped"; });
   });
 }
 
@@ -221,7 +243,7 @@ async function initNewRequestPanel() {
     const category = document.getElementById("req-category").value;
     const audience = document.getElementById("req-audience").value;
     const spotify_url = document.getElementById("req-spotify").value.trim();
-    const imageFile = document.getElementById("req-image-file").files[0];
+    const imageFile = croppedRequestImage || document.getElementById("req-image-file").files[0];
 
     let image_url = "";
     try {
