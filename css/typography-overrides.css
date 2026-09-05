@@ -41,3 +41,9 @@
   height: 32px !important;
   margin-right: 8px !important;
 }
+/* Force feed cards to always be visible — the scroll-fade animation
+   was unreliable and left cards permanently invisible. */
+.ticket, .rec-card {
+  opacity: 1 !important;
+  transform: none !important;
+}
