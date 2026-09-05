@@ -1307,3 +1307,101 @@ textarea { resize: vertical; min-height: 70px; }
   .hero-word { font-size: 15vw; }
 }
 
+/* ---------- Premium motion and finish ---------- */
+:root {
+  --premium-ease: cubic-bezier(.22, 1, .36, 1);
+  --premium-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+  --premium-border: rgba(255, 255, 255, .09);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, .055), transparent 28rem),
+    radial-gradient(circle at 92% 18%, rgba(190, 255, 91, .035), transparent 24rem),
+    var(--bg);
+  color: var(--text);
+}
+
+*, *::before, *::after {
+  transition-timing-function: var(--premium-ease);
+}
+
+.site-header,
+.landing-header {
+  background: rgba(14, 14, 14, .72);
+  border-bottom: 1px solid var(--premium-border);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .16);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+}
+
+.logo, .landing-logo { letter-spacing: -.045em; }
+.nav-links a, .landing-nav a, button, .btn, .chip, .tag, a {
+  transition: color .3s var(--premium-ease), background-color .3s var(--premium-ease),
+    border-color .3s var(--premium-ease), transform .3s var(--premium-ease),
+    box-shadow .3s var(--premium-ease), opacity .3s var(--premium-ease);
+}
+
+.nav-links a:hover, .landing-nav a:hover { transform: translateY(-1px); }
+button:hover, .btn:hover, .chip:hover, .tag:hover { transform: translateY(-2px); }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.hero, .landing-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.hero::before, .landing-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,.045), transparent 34%, rgba(190,255,91,.035));
+  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+}
+.hero-word { text-shadow: 0 18px 60px rgba(0,0,0,.35); }
+.hero-content, .hero-inner { animation: premium-rise .9s var(--premium-ease) both; }
+
+.card, .request-card, .solved-card, .section-card, .trending-card, .shop-card,
+.feed-card, .request-detail, .new-request, .promote-modal-inner {
+  border-color: var(--premium-border);
+  box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  transition: transform .45s var(--premium-ease), box-shadow .45s var(--premium-ease),
+    border-color .45s var(--premium-ease), background-color .45s var(--premium-ease);
+}
+.card:hover, .request-card:hover, .solved-card:hover, .section-card:hover, .trending-card:hover,
+.shop-card:hover, .feed-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(190,255,91,.22);
+  box-shadow: var(--premium-shadow);
+}
+
+img { transition: transform .8s var(--premium-ease), filter .8s var(--premium-ease); }
+.card:hover img, .request-card:hover img, .solved-card:hover img, .trending-card:hover img,
+.shop-card:hover img { transform: scale(1.035); filter: saturate(1.08) contrast(1.02); }
+
+.modal, .new-request-panel, .promote-modal { animation: premium-fade .35s var(--premium-ease) both; }
+.modal-content, .new-request, .promote-modal-inner { animation: premium-rise .45s var(--premium-ease) both; }
+
+@keyframes premium-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes premium-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 600px) {
+  .site-header, .landing-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .hero-content, .hero-inner { animation-duration: .7s; }
+  .card:hover, .request-card:hover, .solved-card:hover, .section-card:hover, .trending-card:hover,
+  .shop-card:hover, .feed-card:hover { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
