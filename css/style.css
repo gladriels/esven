@@ -320,8 +320,11 @@ textarea { resize: vertical; min-height: 70px; }
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-.ticket-wrap { opacity: 1; visibility: visible; }
-.ticket:hover { opacity: 1; visibility: visible; }
+.ticket-wrap { opacity: 1 !important; visibility: visible !important; }
+.board .ticket,
+.board .ticket:hover,
+.board .ticket:focus-visible,
+.board .ticket.reveal { opacity: 1 !important; visibility: visible !important; }
 
 .ticket.reveal {
   opacity: 1;
