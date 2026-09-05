@@ -320,29 +320,22 @@ textarea { resize: vertical; min-height: 70px; }
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-.ticket-wrap { opacity: 1 !important; visibility: visible !important; }
-.board .ticket,
-.board .ticket:hover,
-.board .ticket:focus-visible,
-.board .ticket.reveal { opacity: 1 !important; visibility: visible !important; }
+.ticket-wrap { opacity: 1; visibility: visible; }
+.ticket:hover { opacity: 1; visibility: visible; }
 
 .ticket.reveal {
   opacity: 1;
   transform: translateY(0);
 }
 
-.ticket:hover,
-.ticket:focus-visible {
-  transform: none;
-  opacity: 1 !important;
-  visibility: visible !important;
+.ticket:hover {
+  transform: translateY(-4px);
   box-shadow: 0 12px 28px rgba(17,17,17,0.08);
   border-color: var(--ink);
 }
 
-.ticket:hover .ticket-image,
-.ticket:hover .ticket-image > img {
-  filter: none;
+.ticket:hover .ticket-image {
+  filter: brightness(1.04);
 }
 
 .ticket-image > img {
@@ -352,7 +345,7 @@ textarea { resize: vertical; min-height: 70px; }
   transition: transform 0.4s ease;
 }
 .ticket:hover .ticket-image > img {
-  transform: none;
+  transform: scale(1.06);
 }
 
 .ticket-image {
@@ -1461,7 +1454,7 @@ img { transition: transform .8s var(--premium-ease), filter .8s var(--premium-ea
 }
 .ticket-image { position: relative; z-index: 1; overflow: hidden; border-radius: 14px; }
 .ticket-image img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; filter: saturate(1.08) contrast(1.04); }
-.ticket:hover::before { opacity: .72; transform: none; }
+.ticket:hover::before { opacity: .9; transform: scale(1.16); }
   .ticket-title, .ticket-desc, .ticket-cat, .ticket-song, .ticket-footer { text-shadow: 0 1px 14px rgba(0,0,0,.4); }
 
 .request-page header.site-header {
