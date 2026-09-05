@@ -152,8 +152,8 @@ function renderFeed() {
     });
   });
 
-  // trigger reveal animation on next frame so the transition actually fires
-  requestAnimationFrame(() => revealOnScroll(".ticket"));
+  // Keep posts visible immediately; the feed can render before the observer settles.
+  document.querySelectorAll(".ticket").forEach(ticket => ticket.classList.add("reveal"));
 }
 
 function initCategoryRow() {
