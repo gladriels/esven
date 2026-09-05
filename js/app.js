@@ -31,21 +31,28 @@ function revealOnScroll(selector) {
 
 async function loadFeed() {
   const board = document.getElementById("board");
-  currentUserId = (await getCurrentUser())?.id ?? null;
+  if (!board) return;
+  board.innerHTML = `<p class="feed-loading" role="status">Loading the latest requests...</p>`;
 
-  const { data: requests, error } = await supabase
+  const requestsQuery = supabase
     .from("requests")
     .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, user_id, created_at, profiles(username, avatar_url)")
     .eq("status", "open")
     .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
 
+  const [{ data: requests, error }, { data: { user } }] = await Promise.all([
+    requestsQuery,
+    supabase.auth.getUser()
+  ]);
+  currentUserId = user?.id ?? null;
+
   if (error) {
-    board.innerHTML = `<p class="empty-state">Couldn't load requests: ${error.message}</p>`;
+    board.innerHTML = `<p class="empty-state">Couldn't load requests. Please refresh and try again.</p>`;
     return;
   }
 
-  allRequests = requests;
+  allRequests = requests ?? [];
   renderTrending();
   renderFeed();
   renderSectionTiles();
