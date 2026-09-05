@@ -273,13 +273,14 @@ textarea { resize: vertical; min-height: 70px; }
 /* ---------- Feed grid ---------- */
 
 .board {
-  columns: 3 250px;
-  column-gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: 8px;
+  gap: 18px;
 }
 
 .ticket-wrap {
-  break-inside: avoid;
-  margin-bottom: 18px;
+  grid-row-end: span 30;
 }
 
 .ticket-wrap {
@@ -1262,8 +1263,7 @@ textarea { resize: vertical; min-height: 70px; }
 
 /* ---------- Mobile responsiveness ---------- */
 
-@media (max-width: 860px) {
-  .board { columns: 2 220px; }
+.board { grid-template-columns: repeat(2, 1fr); }
   .sections-row { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -1278,7 +1278,7 @@ textarea { resize: vertical; min-height: 70px; }
   .hero-stats { gap: 22px; }
   .stat-num { font-size: 24px; }
 
-  .board { columns: 1 100%; }
+  .board { grid-template-columns: 1fr; }
   .sections-row { grid-template-columns: repeat(2, 1fr); }
   .section-card { height: 120px; }
 
@@ -1525,7 +1525,7 @@ header.site-header, .landing-header {
   .category-row, .filter-row, .chips-row { overflow-x: auto; overscroll-behavior-inline: contain; padding-bottom: 4px; }
   .category-row::-webkit-scrollbar, .filter-row::-webkit-scrollbar, .chips-row::-webkit-scrollbar { display: none; }
   .cat-chip, .chip { flex: 0 0 auto; min-height: 38px; padding: 10px 13px; }
-  .board { columns: 1; column-gap: 0; }
+  .board { grid-template-columns: 1fr; }
   .ticket-wrap, .ticket { break-inside: avoid; }
   .ticket { border-radius: 18px; padding: 16px; }
   .ticket-title { font-size: 17px; line-height: 1.2; }
