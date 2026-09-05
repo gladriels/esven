@@ -117,7 +117,7 @@ function renderFeed() {
 
   board.innerHTML = filtered.map(r => `
     <div class="ticket-wrap">
-      <a href="request.html#${r.id}" class="ticket">
+      <a href="request.html#${r.id}" class="ticket${r.spotify_url ? " has-spotify" : ""}" data-id="${r.id}"${r.spotify_url ? ` data-spotify="${escapeHtml(r.spotify_url)}"` : ""}>
         ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
         ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
         ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
@@ -132,6 +132,14 @@ function renderFeed() {
       ${r.user_id === currentUserId ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
     </div>
   `).join("");
+
+  document.querySelectorAll(".ticket[data-spotify]").forEach(ticket => {
+    ticket.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem("esven-autoplay-request", ticket.dataset.id);
+      } catch (_) {}
+    });
+  });
 
   document.querySelectorAll(".delete-btn").forEach(btn => {
     btn.addEventListener("click", async (e) => {
