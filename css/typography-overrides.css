@@ -48,3 +48,9 @@
   transform: none !important;
 
 }
+/* Safari has a rendering bug where hover transforms inside a CSS
+   multi-column layout cause cards to flicker/disappear. Disable the
+   hover lift to avoid it. */
+.ticket:hover {
+  transform: none !important;
+}
