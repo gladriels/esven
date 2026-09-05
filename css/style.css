@@ -331,14 +331,18 @@ textarea { resize: vertical; min-height: 70px; }
   transform: translateY(0);
 }
 
-.ticket:hover {
-  transform: translateY(-4px);
+.ticket:hover,
+.ticket:focus-visible {
+  transform: none;
+  opacity: 1 !important;
+  visibility: visible !important;
   box-shadow: 0 12px 28px rgba(17,17,17,0.08);
   border-color: var(--ink);
 }
 
-.ticket:hover .ticket-image {
-  filter: brightness(1.04);
+.ticket:hover .ticket-image,
+.ticket:hover .ticket-image > img {
+  filter: none;
 }
 
 .ticket-image > img {
@@ -348,7 +352,7 @@ textarea { resize: vertical; min-height: 70px; }
   transition: transform 0.4s ease;
 }
 .ticket:hover .ticket-image > img {
-  transform: scale(1.06);
+  transform: none;
 }
 
 .ticket-image {
@@ -1457,7 +1461,7 @@ img { transition: transform .8s var(--premium-ease), filter .8s var(--premium-ea
 }
 .ticket-image { position: relative; z-index: 1; overflow: hidden; border-radius: 14px; }
 .ticket-image img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; filter: saturate(1.08) contrast(1.04); }
-.ticket:hover::before { opacity: .9; transform: scale(1.16); }
+.ticket:hover::before { opacity: .72; transform: none; }
   .ticket-title, .ticket-desc, .ticket-cat, .ticket-song, .ticket-footer { text-shadow: 0 1px 14px rgba(0,0,0,.4); }
 
 .request-page header.site-header {
