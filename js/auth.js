@@ -88,10 +88,29 @@ function openProfileModal(user, currentUsername, currentAvatar) {
   });
 }
 
+function renderLoginShell(bar) {
+  bar.innerHTML = `
+    <form id="login-form" class="login-form">
+      <input type="email" id="login-email" placeholder="your@email.com" required />
+      <button type="submit" class="btn">Send login link</button>
+    </form>
+    <span id="login-status" class="login-status"></span>
+  `;
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value;
+    const status = document.getElementById("login-status");
+    status.textContent = "Sending...";
+    const error = await sendMagicLink(email);
+    status.textContent = error ? "Error: " + error.message : "Check your email for the link.";
+  });
+}
+
 async function renderAuthBar() {
   const bar = document.getElementById("auth-bar");
   if (!bar) return;
 
+  renderLoginShell(bar);
   const user = await getCurrentUser();
 
   if (user) {
@@ -113,22 +132,6 @@ async function renderAuthBar() {
     document.getElementById("signout-btn").addEventListener("click", signOut);
     document.getElementById("avatar-btn").addEventListener("click", () => {
       openProfileModal(user, profile?.username, profile?.avatar_url);
-    });
-  } else {
-    bar.innerHTML = `
-      <form id="login-form" class="login-form">
-        <input type="email" id="login-email" placeholder="your@email.com" required />
-        <button type="submit" class="btn">Send login link</button>
-      </form>
-      <span id="login-status" class="login-status"></span>
-    `;
-    document.getElementById("login-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("login-email").value;
-      const status = document.getElementById("login-status");
-      status.textContent = "Sending...";
-      const error = await sendMagicLink(email);
-      status.textContent = error ? "Error: " + error.message : "Check your email for the link.";
     });
   }
 }
