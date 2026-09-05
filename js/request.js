@@ -8,11 +8,42 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+let spotifyIframeApi = null;
+let spotifyController = null;
+
 function spotifyEmbedUrl(url) {
   if (!url) return null;
   const match = url.match(/track\/([a-zA-Z0-9]+)/);
   if (!match) return null;
   return `https://open.spotify.com/embed/track/${match[1]}?utm_source=generator&theme=0`;
+}
+
+function spotifyTrackUri(url) {
+  const match = url?.match(/track\/([a-zA-Z0-9]+)/);
+  return match ? `spotify:track:${match[1]}` : null;
+}
+
+window.onSpotifyIframeApiReady = (api) => {
+  spotifyIframeApi = api;
+  if (currentRequest) {
+    const shouldAutoplay = (() => {
+      try { return sessionStorage.getItem("esven-autoplay-request") === currentRequest.id; } catch (_) { return false; }
+    })();
+    if (shouldAutoplay) {
+      try { sessionStorage.removeItem("esven-autoplay-request"); } catch (_) {}
+      tryPlaySpotify(currentRequest);
+    }
+  }
+};
+
+function tryPlaySpotify(r) {
+  const player = document.getElementById("request-spotify-player");
+  const uri = spotifyTrackUri(r.spotify_url);
+  if (!player || !uri || !spotifyIframeApi) return;
+  spotifyIframeApi.createController(player, { uri, width: "100%", height: "152" }, (controller) => {
+    spotifyController = controller;
+    controller.play();
+  });
 }
 
 function revealOnScroll(selector) {
@@ -55,13 +86,25 @@ async function loadRequest() {
     ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
     <h1>${escapeHtml(r.title)}</h1>
     <p>${escapeHtml(r.description ?? "")}</p>
-    ${embed ? `<iframe class="spotify-embed" src="${embed}" width="100%" height="152" frameborder="0" allow="encrypted-media"></iframe>` : ""}
+    ${embed ? `<div class="spotify-player-shell" data-track-player><div id="request-spotify-player"></div><button class="spotify-play-hint" type="button" data-play-spotify>Tap to play on Spotify</button><iframe class="spotify-embed-fallback" src="${embed}" width="100%" height="152" frameborder="0" allow="encrypted-media"></iframe></div>` : ""}
     <div class="request-meta">
       <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${r.profiles?.username ?? "someone"}</span>
       ${r.budget ? `<span class="ticket-budget">Budget: ${escapeHtml(r.budget)}</span>` : ""}
       <span>${new Date(r.created_at).toLocaleDateString()}</span>
     </div>
   `;
+
+  const playButton = detail.querySelector("[data-play-spotify]");
+  if (playButton) {
+    playButton.addEventListener("click", () => tryPlaySpotify(r));
+    const shouldAutoplay = (() => {
+      try { return sessionStorage.getItem("esven-autoplay-request") === r.id; } catch (_) { return false; }
+    })();
+    if (shouldAutoplay) {
+      try { sessionStorage.removeItem("esven-autoplay-request"); } catch (_) {}
+      window.setTimeout(() => tryPlaySpotify(r), 120);
+    }
+  }
 }
 
 async function loadRecommendations() {

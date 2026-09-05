@@ -82,6 +82,10 @@ function renderReel() {
     </section>
   `).join("");
 
+  document.querySelectorAll(".reel-section").forEach(section => {
+    section.addEventListener("click", () => playReelItem(section.dataset.id));
+  });
+
   document.querySelector(".reel-cat-row").addEventListener("click", (e) => {
     const chip = e.target.closest(".cat-chip");
     if (!chip) return;
