@@ -31,21 +31,28 @@ function revealOnScroll(selector) {
 
 async function loadFeed() {
   const board = document.getElementById("board");
-  currentUserId = (await getCurrentUser())?.id ?? null;
+  if (!board) return;
+  board.innerHTML = `<p class="feed-loading" role="status">Loading the latest requests...</p>`;
 
-  const { data: requests, error } = await supabase
+  const requestsQuery = supabase
     .from("requests")
     .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, user_id, created_at, profiles(username, avatar_url)")
     .eq("status", "open")
     .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
 
+  const [{ data: requests, error }, { data: { user } }] = await Promise.all([
+    requestsQuery,
+    supabase.auth.getUser()
+  ]);
+  currentUserId = user?.id ?? null;
+
   if (error) {
-    board.innerHTML = `<p class="empty-state">Couldn't load requests: ${error.message}</p>`;
+    board.innerHTML = `<p class="empty-state">Couldn't load requests. Please refresh and try again.</p>`;
     return;
   }
 
-  allRequests = requests;
+  allRequests = requests ?? [];
   renderTrending();
   renderFeed();
   renderSectionTiles();
@@ -110,7 +117,7 @@ function renderFeed() {
 
   board.innerHTML = filtered.map(r => `
     <div class="ticket-wrap">
-      <a href="request.html#${r.id}" class="ticket">
+      <a href="request.html#${r.id}" class="ticket${r.spotify_url ? " has-spotify" : ""}" data-id="${r.id}"${r.spotify_url ? ` data-spotify="${escapeHtml(r.spotify_url)}"` : ""}${r.image_url ? ` style="--post-image: url('${escapeHtml(r.image_url)}')"` : ""}>
         ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
         ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
         ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
@@ -125,6 +132,14 @@ function renderFeed() {
       ${r.user_id === currentUserId ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
     </div>
   `).join("");
+
+  document.querySelectorAll(".ticket[data-spotify]").forEach(ticket => {
+    ticket.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem("esven-autoplay-request", ticket.dataset.id);
+      } catch (_) {}
+    });
+  });
 
   document.querySelectorAll(".delete-btn").forEach(btn => {
     btn.addEventListener("click", async (e) => {
