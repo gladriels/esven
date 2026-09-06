@@ -732,16 +732,16 @@ textarea { resize: vertical; min-height: 70px; }
   z-index: 0;
 }
 .section-card { background-size: cover; background-position: center; }
-.section-him { background-position: center 28%; }
-.section-her { background-position: center 35%; }
+.section-him { background-position: center 18%; }
+.section-her { background-position: center 22%; }
 .section-accessories { background-position: center 54%; }
-.section-places { background-position: center 38%; }
+.section-places { background-position: center 22%; }
 
-.section-him { background-color: #1B1B18; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cover-him-THhjTSOehteseHLMvIcyZa744BRs5J.jpg'); }
- .section-her { background-color: #6B4A3A; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cover-her-EuaHfGHbfXNMA35UO2W0MtT6kEctJY.jpg'); }
+.section-him { background-color: #1B1B18; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/him-xFLXFiu6CcSaZz60PXniAxMSi2z0Vu.jpg'); }
+ .section-her { background-color: #6B4A3A; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/her-W5sjWkhHOHm4IgMsMngIBTrjn9inHg.jpg'); }
  .section-unisex { background-color: #2A2E24; }
  .section-accessories { background-color: #3A2E2A; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/accesories-qqE1opo7Nier9DgWELfNnf4F4xtiTc.jpg'); }
- .section-places { background-color: #223035; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/places-DM2puJscJwZo60lqNe0w2xw4CjIHgf.jpg'); }
+ .section-places { background-color: #223035; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/place-dXV2Q6URIISgYMoaqdkpV19A2eby4e.jpg'); }
 
 .section-label {
   position: relative;
