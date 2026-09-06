@@ -1291,7 +1291,19 @@ textarea { resize: vertical; min-height: 70px; }
   .hero-stats { gap: 22px; }
   .stat-num { font-size: 24px; }
 
-  .board { grid-template-columns: 1fr; }
+  .board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 5px;
+    gap: 8px;
+    align-items: start;
+  }
+  .ticket-wrap { grid-row-end: span 42; }
+  .ticket { padding: 10px; border-radius: 14px; }
+  .ticket-image { margin-bottom: 9px; border-radius: 10px; }
+  .ticket-title { font-size: 14px; line-height: 1.18; margin-bottom: 6px; }
+  .ticket-desc { font-size: 11px; line-height: 1.35; }
+  .ticket-footer { margin-top: 9px; padding-top: 8px; font-size: 10px; }
+  .ticket-cat, .ticket-song { font-size: 9px; }
   .sections-row { grid-template-columns: repeat(2, 1fr); }
   .section-card { height: 120px; }
 
@@ -1560,11 +1572,14 @@ header.site-header, .landing-header {
   .category-row, .filter-row, .chips-row { overflow-x: auto; overscroll-behavior-inline: contain; padding-bottom: 4px; }
   .category-row::-webkit-scrollbar, .filter-row::-webkit-scrollbar, .chips-row::-webkit-scrollbar { display: none; }
   .cat-chip, .chip { flex: 0 0 auto; min-height: 38px; padding: 10px 13px; }
-  .board { grid-template-columns: 1fr; }
-  .ticket-wrap, .ticket { break-inside: avoid; }
-  .ticket { border-radius: 18px; padding: 16px; }
-  .ticket-title { font-size: 17px; line-height: 1.2; }
-  .ticket-desc { font-size: 13px; line-height: 1.55; }
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 5px; gap: 8px; align-items: start; }
+  .ticket-wrap { grid-row-end: span 42; }
+  .ticket { border-radius: 14px; padding: 10px; }
+  .ticket-image { margin-bottom: 9px; border-radius: 10px; }
+  .ticket-title { font-size: 14px; line-height: 1.18; margin-bottom: 6px; }
+  .ticket-desc { font-size: 11px; line-height: 1.35; }
+  .ticket-footer { margin-top: 9px; padding-top: 8px; font-size: 10px; }
+  .ticket-cat, .ticket-song { font-size: 9px; }
   .btn-fab { bottom: calc(14px + env(safe-area-inset-bottom)); right: 14px; left: 14px; min-height: 50px; border-radius: 16px; box-shadow: 0 14px 36px rgba(0,0,0,.34); }
   .new-request-panel { padding: 12px; align-items: flex-end; }
   .new-request { width: 100%; max-height: calc(100dvh - 24px - env(safe-area-inset-top)); overflow-y: auto; border-radius: 22px; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
