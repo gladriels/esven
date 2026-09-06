@@ -9,8 +9,14 @@
   --accent: #E8952E;
   --accent-ink: #111111;
   --pill: #F0EFEA;
-
   --display: 'Inter', sans-serif;
+  --body: 'Inter', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+
+
   --body: 'Inter', sans-serif;
   --mono: 'IBM Plex Mono', monospace;
 }
@@ -1411,6 +1417,28 @@ img { transition: transform .8s var(--premium-ease), filter .8s var(--premium-ea
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
+/* ---------- Image crop dialog ---------- */
+.image-crop-modal { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(8,8,10,.72); backdrop-filter: blur(18px); }
+.image-crop-dialog { width: min(520px, 100%); padding: 20px; border-radius: 24px; background: rgba(255,255,255,.96); color: #121212; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+.image-crop-dialog h2 { margin: 0 0 16px; }
+.image-crop-frame { overflow: hidden; aspect-ratio: 16 / 10; border-radius: 16px; background: #e9e9e9; }
+.image-crop-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.image-crop-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.image-crop-dialog .btn-ghost { color: #222; border-color: rgba(0,0,0,.16); }
+
+/* ---------- White liquid post surfaces ---------- */
+.ticket {
+  background: rgba(255,255,255,.92);
+  color: #141414;
+  border-color: rgba(255,255,255,.9);
+  box-shadow: 0 24px 65px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.95);
+}
+.ticket::before { opacity: .2; mix-blend-mode: multiply; filter: blur(36px) saturate(1.15); }
+.ticket::after { background: linear-gradient(135deg, rgba(255,255,255,.52), rgba(255,255,255,.08) 48%, rgba(255,255,255,.62)); box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+.ticket-title, .ticket-desc, .ticket-cat, .ticket-song, .ticket-footer { color: #171717; text-shadow: none; }
+.ticket-footer { border-color: rgba(17,17,17,.12); }
+.ticket-image { box-shadow: none; }
+
 /* ---------- Image-blended liquid post surfaces ---------- */
 .ticket {
   --post-liquid-base: rgba(13, 15, 20, .94);
@@ -1537,3 +1565,9 @@ header.site-header, .landing-header {
   .modal-content { width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 22px; }
 }
 
+/* Final post surface overrides */
+.ticket { background: rgba(255,255,255,.94); color: #141414; border-color: rgba(255,255,255,.96); box-shadow: 0 24px 65px rgba(0,0,0,.2); }
+.ticket::before { opacity: .16; mix-blend-mode: multiply; filter: blur(36px) saturate(1.1); }
+.ticket::after { background: rgba(255,255,255,.42); box-shadow: none; }
+.ticket-title, .ticket-desc, .ticket-cat, .ticket-song, .ticket-footer { color: #171717; text-shadow: none; }
+.ticket-footer { border-color: rgba(17,17,17,.12); }
