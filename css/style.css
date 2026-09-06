@@ -728,15 +728,20 @@ textarea { resize: vertical; min-height: 70px; }
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.35));
+  background: linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.12) 58%, rgba(0,0,0,0.28));
   z-index: 0;
 }
+.section-card { background-size: cover; background-position: center; }
+.section-him { background-position: center 28%; }
+.section-her { background-position: center 35%; }
+.section-accessories { background-position: center 54%; }
+.section-places { background-position: center 38%; }
 
-.section-him { background-color: #1B1B18; background-image: url('images/cover-him.jpg'); }
-.section-her { background-color: #6B4A3A; background-image: url('images/cover-her.jpg'); }
-.section-unisex { background-color: #2A2E24; background-image: url('images/cover-unisex.jpg'); }
-.section-accessories { background-color: #3A2E2A; background-image: url('images/cover-accessories.jpg'); }
-.section-places { background-color: #223035; background-image: url('images/cover-places.jpg'); }
+.section-him { background-color: #1B1B18; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cover-him-THhjTSOehteseHLMvIcyZa744BRs5J.jpg'); }
+ .section-her { background-color: #6B4A3A; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cover-her-EuaHfGHbfXNMA35UO2W0MtT6kEctJY.jpg'); }
+ .section-unisex { background-color: #2A2E24; }
+ .section-accessories { background-color: #3A2E2A; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/accesories-qqE1opo7Nier9DgWELfNnf4F4xtiTc.jpg'); }
+ .section-places { background-color: #223035; background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/places-DM2puJscJwZo60lqNe0w2xw4CjIHgf.jpg'); }
 
 .section-label {
   position: relative;
