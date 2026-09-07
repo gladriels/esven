@@ -104,68 +104,35 @@ async function uploadAvatar(user, file) {
   return data.publicUrl;
 }
 
-function openProfileModal(user, currentUsername, currentAvatar) {
-  let modal = document.getElementById("profile-modal");
-  if (modal) modal.remove();
-
-  modal = document.createElement("div");
-  modal.id = "profile-modal";
-  modal.className = "new-request-panel open";
-  modal.innerHTML = `
-    <section class="new-request">
-      <button class="panel-close" id="profile-close-btn">&times;</button>
-      <h2>Edit profile</h2>
-      <div class="field-row">
-        <img id="avatar-preview" src="${currentAvatar || ''}" class="avatar-preview ${currentAvatar ? '' : 'avatar-preview-empty'}" />
-      </div>
-      <div class="field-row">
-        <label class="upload-label" for="avatar-file">
-          <span id="avatar-upload-text">Change photo</span>
-        </label>
-        <input type="file" id="avatar-file" accept="image/*" style="display:none;" />
-      </div>
-      <div class="field-row">
-        <input type="text" id="profile-username" value="${currentUsername || ''}" placeholder="username" />
-      </div>
-      <button id="profile-save-btn" class="btn">Save</button>
-    </section>
-  `;
+function openAvatarCropper(file, onCrop) {
+  const source = URL.createObjectURL(file);
+  const modal = document.createElement("div");
+  modal.className = "image-crop-modal";
+  modal.innerHTML = `<div class="image-crop-dialog avatar-crop-dialog"><button type="button" class="panel-close" data-cancel>&times;</button><h2>Position your photo</h2><p class="field-hint">Drag to move. Use the slider to zoom.</p><div class="avatar-crop-frame"><img alt="Avatar crop preview"></div><input class="avatar-crop-zoom" type="range" min="1" max="3" value="1" step="0.01" aria-label="Zoom photo"><div class="image-crop-actions"><button type="button" class="btn btn-ghost" data-cancel>Cancel</button><button type="button" class="btn" data-save>Use photo</button></div></div>`;
   document.body.appendChild(modal);
-
-  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
-  document.getElementById("profile-close-btn").addEventListener("click", () => modal.remove());
-
-  let pendingFile = null;
-  document.getElementById("avatar-file").addEventListener("change", (e) => {
-    pendingFile = e.target.files[0];
-    if (pendingFile) {
-      const preview = document.getElementById("avatar-preview");
-      preview.src = URL.createObjectURL(pendingFile);
-      preview.classList.remove("avatar-preview-empty");
-    }
-  });
-
-  document.getElementById("profile-save-btn").addEventListener("click", async () => {
-    const newUsername = document.getElementById("profile-username").value.trim();
-    const updates = {};
-    if (newUsername) updates.username = newUsername;
-
-    try {
-      if (pendingFile) {
-        updates.avatar_url = await uploadAvatar(user, pendingFile);
-      }
-      if (Object.keys(updates).length) {
-        const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
-        if (error) throw error;
-      }
-      modal.remove();
-      renderAuthBar();
-    } catch (err) {
-      alert("Couldn't save: " + err.message);
-    }
-  });
+  const image = modal.querySelector("img"), frame = modal.querySelector(".avatar-crop-frame"), zoom = modal.querySelector("input");
+  let scale = 1, x = 0, y = 0, startX = 0, startY = 0, dragging = false;
+  const draw = () => { image.style.transform = `translate(${x}px, ${y}px) scale(${scale})`; };
+  const bounds = () => { const size = frame.clientWidth; const naturalRatio = image.naturalWidth / image.naturalHeight; const base = naturalRatio >= 1 ? size / image.naturalHeight : size / image.naturalWidth; const width = image.naturalWidth * base * scale, height = image.naturalHeight * base * scale; x = Math.min(Math.max(x, (size - width) / 2), (width - size) / 2); y = Math.min(Math.max(y, (size - height) / 2), (height - size) / 2); };
+  image.onload = () => { bounds(); draw(); };
+  image.src = source;
+  zoom.oninput = () => { scale = Number(zoom.value); bounds(); draw(); };
+  frame.onpointerdown = (event) => { dragging = true; startX = event.clientX - x; startY = event.clientY - y; frame.setPointerCapture(event.pointerId); };
+  frame.onpointermove = (event) => { if (!dragging) return; x = event.clientX - startX; y = event.clientY - startY; bounds(); draw(); };
+  frame.onpointerup = () => { dragging = false; };
+  modal.querySelectorAll("[data-cancel]").forEach(button => button.onclick = () => { URL.revokeObjectURL(source); modal.remove(); });
+  modal.querySelector("[data-save]").onclick = () => { const size = 512, canvas = document.createElement("canvas"); canvas.width = canvas.height = size; const frameSize = frame.clientWidth, naturalRatio = image.naturalWidth / image.naturalHeight; const base = naturalRatio >= 1 ? frameSize / image.naturalHeight : frameSize / image.naturalWidth; const rendered = base * scale; canvas.getContext("2d").drawImage(image, ((frameSize - image.naturalWidth * rendered) / 2 + x) * size / frameSize, ((frameSize - image.naturalHeight * rendered) / 2 + y) * size / frameSize, image.naturalWidth * rendered * size / frameSize, image.naturalHeight * rendered * size / frameSize); canvas.toBlob(blob => { onCrop(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" })); URL.revokeObjectURL(source); modal.remove(); }, "image/jpeg", .9); };
 }
 
+function openProfileModal(user, currentUsername, currentAvatar) {
+  let modal = document.getElementById("profile-modal"); if (modal) modal.remove();
+  modal = document.createElement("div"); modal.id = "profile-modal"; modal.className = "new-request-panel open";
+  modal.innerHTML = `<section class="new-request"><button class="panel-close" id="profile-close-btn">&times;</button><h2>Edit profile</h2><div class="field-row"><img id="avatar-preview" src="${currentAvatar || ''}" class="avatar-preview ${currentAvatar ? '' : 'avatar-preview-empty'}" /></div><div class="field-row"><label class="upload-label" for="avatar-file"><span>Change photo</span></label><input type="file" id="avatar-file" accept="image/*" style="display:none;" /></div><div class="field-row"><input type="text" id="profile-username" value="${currentUsername || ''}" placeholder="username" /></div><button id="profile-save-btn" class="btn">Save</button></section>`;
+  document.body.appendChild(modal); modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); }); document.getElementById("profile-close-btn").onclick = () => modal.remove();
+  let pendingFile = null;
+  document.getElementById("avatar-file").onchange = e => { const file = e.target.files[0]; if (!file) return; openAvatarCropper(file, cropped => { pendingFile = cropped; const preview = document.getElementById("avatar-preview"); preview.src = URL.createObjectURL(cropped); preview.classList.remove("avatar-preview-empty"); }); };
+  document.getElementById("profile-save-btn").onclick = async () => { const username = document.getElementById("profile-username").value.trim(), updates = {}; if (username) updates.username = username; try { if (pendingFile) updates.avatar_url = await uploadAvatar(user, pendingFile); if (Object.keys(updates).length) { const { error } = await supabase.from("profiles").update(updates).eq("id", user.id); if (error) throw error; } modal.remove(); renderAuthBar(); } catch (err) { alert("Couldn't save: " + err.message); } };
+}
 function renderLoginShell(bar) {
   bar.innerHTML = `
     <div class="auth-entry-actions">
@@ -244,18 +211,16 @@ async function renderAuthBar() {
 
     bar.innerHTML = `
       <button id="avatar-btn" class="avatar-btn">
-        ${profile?.avatar_url
-          ? `<img src="${profile.avatar_url}" class="avatar-thumb" />`
-          : `<span class="avatar-thumb avatar-thumb-empty"></span>`}
+        ${profile?.avatar_url ? `<img src="${profile.avatar_url}" class="avatar-thumb" />` : `<span class="avatar-thumb avatar-thumb-empty"></span>`}
         <span class="auth-user">@${profile?.username ?? "you"}</span>
       </button>
+      <button id="edit-profile-btn" class="btn btn-ghost">Edit</button>
       <button id="signout-btn" class="btn btn-ghost">Sign out</button>
     `;
     renderMemberWelcome(profile);
     document.getElementById("signout-btn").addEventListener("click", signOut);
-    document.getElementById("avatar-btn").addEventListener("click", () => {
-      openProfileModal(user, profile?.username, profile?.avatar_url);
-    });
+    document.getElementById("avatar-btn").onclick = () => { window.location.href = `profile.html#${encodeURIComponent(profile?.username ?? "")}`; };
+    document.getElementById("edit-profile-btn").onclick = () => openProfileModal(user, profile?.username, profile?.avatar_url);
   }
 }
 

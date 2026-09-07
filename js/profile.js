@@ -102,19 +102,12 @@ async function loadProfile() {
   } else if (!requests || !requests.length) {
     reqContainer.innerHTML = `<p class="empty-state">No requests yet.</p>`;
   } else {
+    reqContainer.classList.add("profile-post-grid");
     reqContainer.innerHTML = requests.map(r => `
-      <a href="request.html#${r.id}" class="ticket reveal">
-        ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
-        ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-        <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
-        <p class="ticket-desc">${escapeHtml(r.description ?? "")}</p>
-        ${r.spotify_url ? `<div class="ticket-song">&#9834; song attached</div>` : ""}
-        <div class="ticket-footer">
-          <span>${new Date(r.created_at).toLocaleDateString()}</span>
-          ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
-        </div>
-      </a>
-    `).join("");
+      <a href="request.html#${r.id}" class="profile-post">
+        ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}">` : `<span class="profile-post-fallback">${escapeHtml(r.title)}</span>`}
+        <span class="profile-post-overlay"><strong>${escapeHtml(r.title)}</strong><small>${r.category || "Request"}</small></span>
+      </a>`).join("");
   }
 
   if (recResult.error) {
