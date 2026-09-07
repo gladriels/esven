@@ -1,6 +1,7 @@
 let activeCategory = "";
 let allRequests = [];
 let currentUserId = null;
+let currentUserIsAdmin = false;
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -46,6 +47,11 @@ async function loadFeed() {
     supabase.auth.getUser()
   ]);
   currentUserId = user?.id ?? null;
+  currentUserIsAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
+    currentUserIsAdmin = profile?.is_admin === true;
+  }
 
   if (error) {
     board.innerHTML = `<p class="empty-state">Couldn't load requests. Please refresh and try again.</p>`;
@@ -129,7 +135,7 @@ function renderFeed() {
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
         </div>
       </a>
-      ${r.user_id === currentUserId ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
+      ${r.user_id === currentUserId || currentUserIsAdmin ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
     </div>
   `).join("");
 

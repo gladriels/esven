@@ -129,6 +129,11 @@ async function loadRecommendations() {
 
   const user = await getCurrentUser();
   const isOwner = user && currentRequest && user.id === currentRequest.user_id;
+  let isAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
+    isAdmin = profile?.is_admin === true;
+  }
 
   list.innerHTML = recs.map(rec => `
     <div class="rec-card ${rec.is_favorite ? "is-favorite" : ""}">
@@ -140,7 +145,7 @@ async function loadRecommendations() {
         <span class="ticket-author">${rec.profiles?.avatar_url ? `<img src="${rec.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${rec.profiles?.username ?? "someone"}</span>
         <span class="rec-actions">
           ${isOwner && !rec.is_favorite ? `<button class="fav-btn" data-id="${rec.id}">Mark favorite</button>` : ""}
-          ${user && user.id === rec.user_id ? `<button class="delete-rec-btn" data-id="${rec.id}">Delete</button>` : ""}
+          ${user && (user.id === rec.user_id || isAdmin) ? `<button class="delete-rec-btn" data-id="${rec.id}">Delete</button>` : ""}
         </span>
       </div>
     </div>
