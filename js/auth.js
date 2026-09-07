@@ -191,12 +191,21 @@ function renderLoginShell(bar) {
           <button type="submit" class="btn auth-submit">${isSignUp ? "Create account" : "Sign in"}</button>
           <span id="auth-panel-status" class="login-status"></span>
         </form>
-        <p class="auth-panel-switch">${isSignUp ? "Already a member?" : "New to Esven?"} <button type="button" class="link-btn" data-switch>${isSignUp ? "Sign in" : "Create an account"}</button></p>
+        ${isSignUp ? `<p class="auth-panel-switch">Already a member? <button type="button" class="link-btn" data-switch>Sign in</button></p>` : `<p class="auth-panel-switch"><button type="button" class="link-btn" data-forgot-password>Forgot password?</button><br>New to Esven? <button type="button" class="link-btn" data-switch>Create an account</button></p>`}
       </section>`;
     document.body.appendChild(panel);
     panel.querySelector("[data-close]").onclick = () => panel.remove();
     panel.addEventListener("click", (event) => { if (event.target === panel) panel.remove(); });
     panel.querySelector("[data-switch]").onclick = () => { panel.remove(); openPanel(isSignUp ? "signin" : "signup"); };
+    const forgotPassword = panel.querySelector("[data-forgot-password]");
+    if (forgotPassword) forgotPassword.onclick = async () => {
+      const email = panel.querySelector("#auth-email").value.trim();
+      const status = panel.querySelector("#auth-panel-status");
+      if (!email) { status.textContent = "Enter your email first."; return; }
+      status.textContent = "Sending password recovery email...";
+      const error = await sendPasswordReset(email);
+      status.textContent = error ? error.message : "Check your email to create a new password.";
+    };
     panel.querySelector("form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const email = panel.querySelector("#auth-email").value.trim();
