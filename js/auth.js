@@ -13,6 +13,18 @@ async function sendMagicLink(email) {
   return error;
 }
 
+async function signInWithPassword(email, password) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  return error;
+}
+
+async function sendPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + "/index.html"
+  });
+  return error;
+}
+
 async function signOut() {
   await supabase.auth.signOut();
   window.location.href = "index.html";
@@ -92,17 +104,34 @@ function renderLoginShell(bar) {
   bar.innerHTML = `
     <form id="login-form" class="login-form">
       <input type="email" id="login-email" placeholder="your@email.com" required />
-      <button type="submit" class="btn">Send login link</button>
+      <input type="password" id="login-password" placeholder="Password" minlength="6" autocomplete="current-password" />
+      <button type="submit" class="btn" id="login-submit">Sign in</button>
     </form>
+    <div class="login-options"><button type="button" class="link-btn" id="magic-link-btn">Email me a login link</button><button type="button" class="link-btn" id="reset-password-btn">Set or reset password</button></div>
     <span id="login-status" class="login-status"></span>
   `;
+  const emailInput = document.getElementById("login-email");
+  const passwordInput = document.getElementById("login-password");
+  const status = document.getElementById("login-status");
+
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = document.getElementById("login-email").value;
-    const status = document.getElementById("login-status");
+    status.textContent = "Signing in...";
+    const error = await signInWithPassword(emailInput.value.trim(), passwordInput.value);
+    status.textContent = error ? "Invalid email or password." : "Signed in.";
+    if (!error) window.location.reload();
+  });
+
+  document.getElementById("magic-link-btn").addEventListener("click", async () => {
     status.textContent = "Sending...";
-    const error = await sendMagicLink(email);
-    status.textContent = error ? "Error: " + error.message : "Check your email for the link.";
+    const error = await sendMagicLink(emailInput.value.trim());
+    status.textContent = error ? "Couldn’t send the link." : "Check your email for the link.";
+  });
+
+  document.getElementById("reset-password-btn").addEventListener("click", async () => {
+    status.textContent = "Sending password setup email...";
+    const error = await sendPasswordReset(emailInput.value.trim());
+    status.textContent = error ? "Couldn’t send the password email." : "Check your email to create a password.";
   });
 }
 
