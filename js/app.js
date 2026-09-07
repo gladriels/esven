@@ -224,14 +224,15 @@ async function initNewRequestPanel() {
   const closeBtn = document.getElementById("close-panel-btn");
   const panel = document.getElementById("new-request-panel");
 
-  openBtn.addEventListener("click", async () => {
+  const openRequestPanel = async () => {
     const user = await getCurrentUser();
     if (!user) {
       alert("Sign in up top first to post a request.");
       return;
     }
     panel.classList.add("open");
-  });
+  };
+  openBtn.addEventListener("click", openRequestPanel);
 
   closeBtn.addEventListener("click", () => panel.classList.remove("open"));
   panel.addEventListener("click", (e) => {
@@ -281,4 +282,10 @@ document.addEventListener("DOMContentLoaded", () => {
   initCategoryRow();
   initNewRequestPanel();
   initImagePreview();
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-autoplay-audience]").forEach(link => {
+    link.addEventListener("click", () => sessionStorage.setItem("esven-autoplay-audience", link.dataset.autoplayAudience));
+  });
 });

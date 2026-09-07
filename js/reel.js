@@ -94,6 +94,12 @@ function renderReel() {
   });
 
   initReelObserver();
+  const requestedId = sessionStorage.getItem("esven-autoplay-reel");
+  const requestedAudience = sessionStorage.getItem("esven-autoplay-audience");
+  if (requestedAudience) sessionStorage.removeItem("esven-autoplay-audience");
+  if (requestedId) sessionStorage.removeItem("esven-autoplay-reel");
+  const selected = requestedId ? document.querySelector(`.reel-section[data-id="${requestedId}"]`) : (requestedAudience ? document.querySelector(".reel-section") : null);
+  if (selected) { selected.scrollIntoView({ block: "center" }); playReelItem(selected.dataset.id); }
 }
 
 function ensureController(requestId, uri, callback) {

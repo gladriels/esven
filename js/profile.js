@@ -53,6 +53,22 @@ async function loadProfile() {
   const requests = reqResult.data;
   const recs = recResult.data;
 
+  const { data: { user: viewer } } = await supabase.auth.getUser();
+  const [{ count: followerCount }, { count: followingCount }] = await Promise.all([
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id)
+  ]);
+  let viewerFollowsProfile = false;
+  if (viewer && viewer.id !== profile.id) {
+    const { data } = await supabase.from("follows").select("follower_id").eq("follower_id", viewer.id).eq("following_id", profile.id).maybeSingle();
+    viewerFollowsProfile = Boolean(data);
+  }
+  let viewerIsAdmin = false;
+  if (viewer) {
+    const { data: viewerProfile } = await supabase.from("profiles").select("is_admin").eq("id", viewer.id).maybeSingle();
+    viewerIsAdmin = viewerProfile?.is_admin === true;
+  }
+
   const songEmbed = profileSpotifyEmbedUrl(profile.profile_spotify_url);
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
@@ -66,32 +82,59 @@ async function loadProfile() {
         <div class="profile-stats-row">
           <span><strong>${requests?.length ?? 0}</strong> requests</span>
           <span><strong>${recs?.length ?? 0}</strong> recommendations</span>
+          <span><strong>${followerCount ?? 0}</strong> followers</span>
+          <span><strong>${followingCount ?? 0}</strong> following</span>
           <span>Joined ${joined}</span>
         </div>
       </div>
     </div>
     ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
+    ${viewer && viewer.id !== profile.id ? `<button class="btn profile-follow-btn" id="follow-profile-btn">${viewerFollowsProfile ? "Following" : "Follow"}</button>` : ""}
+    ${viewerIsAdmin && viewer.id !== profile.id ? `<button class="btn btn-danger" id="admin-remove-user">Remove account</button>` : ""}
     ${songEmbed ? `<iframe class="spotify-embed" src="${songEmbed}" width="100%" height="80" frameborder="0" allow="encrypted-media"></iframe>` : ""}
   `;
+
+  const followButton = document.getElementById("follow-profile-btn");
+  if (followButton) followButton.addEventListener("click", async () => {
+    followButton.disabled = true;
+    const query = viewerFollowsProfile
+      ? supabase.from("follows").delete().eq("follower_id", viewer.id).eq("following_id", profile.id)
+      : supabase.from("follows").insert({ follower_id: viewer.id, following_id: profile.id });
+    const { error } = await query;
+    if (error) { alert("Couldn't update follow: " + error.message); followButton.disabled = false; return; }
+    viewerFollowsProfile = !viewerFollowsProfile;
+    followButton.textContent = viewerFollowsProfile ? "Following" : "Follow";
+    followButton.classList.toggle("is-following", viewerFollowsProfile);
+    followButton.disabled = false;
+  });
+
+  const removeButton = document.getElementById("admin-remove-user");
+  if (removeButton) removeButton.addEventListener("click", async () => {
+    if (!confirm(`Remove @${profile.username} and their content? This cannot be undone.`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) { alert("Your session expired. Sign in again."); return; }
+    const response = await fetch("/api/admin-delete-user", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ userId: profile.id })
+    });
+    const data = await response.json();
+    if (!response.ok) { alert(data.error || "Couldn't remove this account."); return; }
+    window.location.href = "index.html";
+  });
 
   if (reqResult.error) {
     reqContainer.innerHTML = `<p class="empty-state">Couldn't load requests: ${escapeHtml(reqResult.error.message)}</p>`;
   } else if (!requests || !requests.length) {
     reqContainer.innerHTML = `<p class="empty-state">No requests yet.</p>`;
   } else {
+    reqContainer.classList.add("profile-post-grid");
     reqContainer.innerHTML = requests.map(r => `
-      <a href="request.html#${r.id}" class="ticket reveal">
-        ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
-        ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-        <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
-        <p class="ticket-desc">${escapeHtml(r.description ?? "")}</p>
-        ${r.spotify_url ? `<div class="ticket-song">&#9834; song attached</div>` : ""}
-        <div class="ticket-footer">
-          <span>${new Date(r.created_at).toLocaleDateString()}</span>
-          ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
-        </div>
-      </a>
-    `).join("");
+      <a href="request.html#${r.id}" class="profile-post${r.image_url ? " has-image" : ""}">
+        ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
+        <span class="profile-post-fallback">${escapeHtml(r.title)}</span>
+        <span class="profile-post-overlay"><strong>${escapeHtml(r.title)}</strong><small>${r.category || "Request"}</small></span>
+      </a>`).join("");
   }
 
   if (recResult.error) {
