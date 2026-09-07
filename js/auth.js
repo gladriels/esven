@@ -168,50 +168,57 @@ function openProfileModal(user, currentUsername, currentAvatar) {
 
 function renderLoginShell(bar) {
   bar.innerHTML = `
-    <form id="login-form" class="login-form">
-      <input type="email" id="login-email" placeholder="your@email.com" required />
-      <input type="password" id="login-password" placeholder="Password" minlength="6" autocomplete="current-password" />
-      <button type="submit" class="btn" id="login-submit">Sign in</button>
-    </form>
-    <div class="login-options"><button type="button" class="link-btn" id="signup-btn">Sign up</button><button type="button" class="link-btn" id="magic-link-btn">Email me a login link</button><button type="button" class="link-btn" id="reset-password-btn">Reset password</button></div>
-    <span id="login-status" class="login-status"></span>
+    <div class="auth-entry-actions">
+      <button type="button" class="btn btn-ghost" id="show-signin-btn">Sign in</button>
+      <button type="button" class="btn" id="show-signup-btn">Sign up</button>
+    </div>
   `;
-  const emailInput = document.getElementById("login-email");
-  const passwordInput = document.getElementById("login-password");
-  const status = document.getElementById("login-status");
 
-  document.getElementById("login-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    status.textContent = "Signing in...";
-    const error = await signInWithPassword(emailInput.value.trim(), passwordInput.value);
-    status.textContent = error ? "Invalid email or password." : "Signed in.";
-    if (!error) window.location.reload();
-  });
+  const openPanel = (mode) => {
+    const isSignUp = mode === "signup";
+    const panel = document.createElement("div");
+    panel.className = "new-request-panel open";
+    panel.id = "auth-panel";
+    panel.innerHTML = `
+      <section class="new-request auth-panel-card">
+        <button class="panel-close" type="button" data-close>&times;</button>
+        <p class="auth-panel-eyebrow">Esven</p>
+        <h2>${isSignUp ? "Create your account" : "Welcome back"}</h2>
+        <p class="field-hint">${isSignUp ? "Join to post requests and share recommendations." : "Sign in with your email and password."}</p>
+        <form id="auth-panel-form">
+          <div class="field-row"><input type="email" id="auth-email" placeholder="Email address" autocomplete="email" required></div>
+          <div class="field-row"><input type="password" id="auth-password" placeholder="Password" minlength="6" autocomplete="${isSignUp ? "new-password" : "current-password"}" required></div>
+          <button type="submit" class="btn auth-submit">${isSignUp ? "Create account" : "Sign in"}</button>
+          <span id="auth-panel-status" class="login-status"></span>
+        </form>
+        <p class="auth-panel-switch">${isSignUp ? "Already a member?" : "New to Esven?"} <button type="button" class="link-btn" data-switch>${isSignUp ? "Sign in" : "Create an account"}</button></p>
+      </section>`;
+    document.body.appendChild(panel);
+    panel.querySelector("[data-close]").onclick = () => panel.remove();
+    panel.addEventListener("click", (event) => { if (event.target === panel) panel.remove(); });
+    panel.querySelector("[data-switch]").onclick = () => { panel.remove(); openPanel(isSignUp ? "signin" : "signup"); };
+    panel.querySelector("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = panel.querySelector("#auth-email").value.trim();
+      const password = panel.querySelector("#auth-password").value;
+      const status = panel.querySelector("#auth-panel-status");
+      status.textContent = isSignUp ? "Creating account..." : "Signing in...";
+      if (isSignUp) {
+        const { data, error } = await signUpWithPassword(email, password);
+        if (error) { status.textContent = error.message; return; }
+        status.textContent = data.session ? "Account created. You are signed in." : "Check your email to confirm your account, then sign in.";
+        if (data.session) window.location.reload();
+        return;
+      }
+      const error = await signInWithPassword(email, password);
+      if (error) { status.textContent = "Invalid email or password."; return; }
+      window.location.reload();
+    });
+  };
 
-  document.getElementById("signup-btn").addEventListener("click", async () => {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    if (!email || !password) { status.textContent = "Enter your email and a password to sign up."; return; }
-    status.textContent = "Creating account...";
-    const { data, error } = await signUpWithPassword(email, password);
-    if (error) { status.textContent = error.message; return; }
-    status.textContent = data.session ? "Account created. You are signed in." : "Check your email to confirm your account, then sign in.";
-    if (data.session) window.location.reload();
-  });
-
-  document.getElementById("magic-link-btn").addEventListener("click", async () => {
-    status.textContent = "Sending...";
-    const error = await sendMagicLink(emailInput.value.trim());
-    status.textContent = error ? "Couldn’t send the link." : "Check your email for the link.";
-  });
-
-  document.getElementById("reset-password-btn").addEventListener("click", async () => {
-    status.textContent = "Sending password setup email...";
-    const error = await sendPasswordReset(emailInput.value.trim());
-    status.textContent = error ? "Couldn’t send the password email." : "Check your email to create a password.";
-  });
+  document.getElementById("show-signin-btn").onclick = () => openPanel("signin");
+  document.getElementById("show-signup-btn").onclick = () => openPanel("signup");
 }
-
 async function renderAuthBar() {
   const bar = document.getElementById("auth-bar");
   if (!bar) return;

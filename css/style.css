@@ -1627,3 +1627,12 @@ header.site-header, .landing-header {
 .instagram-browser-prompt button { grid-column: 2; grid-row: 1 / span 2; border: 1px solid rgba(255,255,255,.45); border-radius: 8px; background: transparent; color: #fff; padding: 8px 10px; font: inherit; }
 .btn-danger { background: #9f1d1d; color: #fff; border-color: #9f1d1d; }
 .btn-danger:hover { background: #7f1616; }
+.auth-entry-actions { display: flex; gap: 8px; }
+.auth-panel-card { width: min(420px, 100%); }
+.auth-panel-eyebrow { margin: 0 0 8px; color: var(--accent); font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.auth-panel-card h2 { margin-bottom: 6px; }
+.auth-panel-card .field-row { margin-top: 12px; }
+.auth-panel-card input { width: 100%; }
+.auth-submit { width: 100%; margin-top: 14px; }
+.auth-panel-switch { margin: 18px 0 0; text-align: center; color: var(--ink-soft); font-size: 13px; }
+.auth-panel-switch .link-btn { color: inherit; text-decoration: underline; }
