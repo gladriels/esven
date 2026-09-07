@@ -53,6 +53,13 @@ async function loadProfile() {
   const requests = reqResult.data;
   const recs = recResult.data;
 
+  const { data: { user: viewer } } = await supabase.auth.getUser();
+  let viewerIsAdmin = false;
+  if (viewer) {
+    const { data: viewerProfile } = await supabase.from("profiles").select("is_admin").eq("id", viewer.id).maybeSingle();
+    viewerIsAdmin = viewerProfile?.is_admin === true;
+  }
+
   const songEmbed = profileSpotifyEmbedUrl(profile.profile_spotify_url);
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
@@ -71,8 +78,24 @@ async function loadProfile() {
       </div>
     </div>
     ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
+    ${viewerIsAdmin && viewer.id !== profile.id ? `<button class="btn btn-danger" id="admin-remove-user">Remove account</button>` : ""}
     ${songEmbed ? `<iframe class="spotify-embed" src="${songEmbed}" width="100%" height="80" frameborder="0" allow="encrypted-media"></iframe>` : ""}
   `;
+
+  const removeButton = document.getElementById("admin-remove-user");
+  if (removeButton) removeButton.addEventListener("click", async () => {
+    if (!confirm(`Remove @${profile.username} and their content? This cannot be undone.`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) { alert("Your session expired. Sign in again."); return; }
+    const response = await fetch("/api/admin-delete-user", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ userId: profile.id })
+    });
+    const data = await response.json();
+    if (!response.ok) { alert(data.error || "Couldn't remove this account."); return; }
+    window.location.href = "index.html";
+  });
 
   if (reqResult.error) {
     reqContainer.innerHTML = `<p class="empty-state">Couldn't load requests: ${escapeHtml(reqResult.error.message)}</p>`;

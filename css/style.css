@@ -1614,3 +1614,16 @@ header.site-header, .landing-header {
   .mini-avatar-empty { display: inline-block; background: linear-gradient(135deg, #20242d, #a8b0bc); }
   .ticket-budget { color: #a45d20; font-weight: 700; }
 }
+
+.instagram-browser-prompt {
+  position: fixed; z-index: 500; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; align-items: center;
+  padding: 12px 14px; border-radius: 14px; background: #171717; color: #fff;
+  box-shadow: 0 12px 32px rgba(0,0,0,.28); font-size: 13px;
+}
+.instagram-browser-prompt strong { grid-column: 1; }
+.instagram-browser-prompt span { grid-column: 1; color: rgba(255,255,255,.78); }
+.instagram-browser-prompt em { font-style: normal; color: #fff; }
+.instagram-browser-prompt button { grid-column: 2; grid-row: 1 / span 2; border: 1px solid rgba(255,255,255,.45); border-radius: 8px; background: transparent; color: #fff; padding: 8px 10px; font: inherit; }
+.btn-danger { background: #9f1d1d; color: #fff; border-color: #9f1d1d; }
+.btn-danger:hover { background: #7f1616; }

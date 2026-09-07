@@ -1,5 +1,62 @@
 // Shared auth bar logic. Include after supabase-client.js on every page.
 
+
+function isInstagramBrowser() {
+  return /Instagram/i.test(navigator.userAgent);
+}
+
+async function completePasswordRecovery(password) {
+  const { error } = await supabase.auth.updateUser({ password });
+  return error;
+}
+
+function openPasswordRecoveryModal() {
+  if (document.getElementById("password-recovery-modal")) return;
+  const modal = document.createElement("div");
+  modal.id = "password-recovery-modal";
+  modal.className = "new-request-panel open";
+  modal.innerHTML = `
+    <section class="new-request">
+      <button class="panel-close" type="button" data-close>&times;</button>
+      <h2>Create your password</h2>
+      <p class="field-hint">Choose a password with at least 6 characters. You will stay signed in after saving it.</p>
+      <form id="password-recovery-form">
+        <div class="field-row"><input id="new-password" type="password" minlength="6" autocomplete="new-password" placeholder="New password" required></div>
+        <div class="field-row"><input id="confirm-password" type="password" minlength="6" autocomplete="new-password" placeholder="Confirm password" required></div>
+        <button class="btn" type="submit">Save password</button>
+        <span id="password-recovery-status" class="login-status"></span>
+      </form>
+    </section>`;
+  document.body.appendChild(modal);
+  modal.querySelector("[data-close]").onclick = () => modal.remove();
+  modal.addEventListener("click", (event) => { if (event.target === modal) modal.remove(); });
+  modal.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const password = modal.querySelector("#new-password").value;
+    const confirmation = modal.querySelector("#confirm-password").value;
+    const status = modal.querySelector("#password-recovery-status");
+    if (password !== confirmation) { status.textContent = "Passwords do not match."; return; }
+    status.textContent = "Saving...";
+    const error = await completePasswordRecovery(password);
+    if (error) { status.textContent = error.message; return; }
+    status.textContent = "Password saved. You are signed in.";
+    window.setTimeout(() => { modal.remove(); window.history.replaceState({}, document.title, window.location.pathname); window.location.reload(); }, 700);
+  });
+}
+
+function renderInstagramBrowserPrompt() {
+  if (!isInstagramBrowser() || document.getElementById("instagram-browser-prompt")) return;
+  const prompt = document.createElement("aside");
+  prompt.id = "instagram-browser-prompt";
+  prompt.className = "instagram-browser-prompt";
+  prompt.innerHTML = `<strong>For a longer sign-in</strong><span>Instagram may clear this browser's session. Tap ⋯ then <em>Open in browser</em>.</span><button type="button">Copy link</button>`;
+  prompt.querySelector("button").onclick = async () => {
+    try { await navigator.clipboard.writeText(window.location.href); prompt.querySelector("button").textContent = "Link copied"; }
+    catch (_) { prompt.querySelector("button").textContent = "Copy this page's link"; }
+  };
+  document.body.appendChild(prompt);
+}
+
 async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
@@ -165,4 +222,13 @@ async function renderAuthBar() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", renderAuthBar);
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "PASSWORD_RECOVERY") openPasswordRecoveryModal();
+});
+
+document.addEventListener("DOMContentLoaded", async () => {
+  renderInstagramBrowserPrompt();
+  await renderAuthBar();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session && window.location.hash.includes("type=recovery")) openPasswordRecoveryModal();
+});
