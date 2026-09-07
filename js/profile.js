@@ -104,8 +104,9 @@ async function loadProfile() {
   } else {
     reqContainer.classList.add("profile-post-grid");
     reqContainer.innerHTML = requests.map(r => `
-      <a href="request.html#${r.id}" class="profile-post">
-        ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}">` : `<span class="profile-post-fallback">${escapeHtml(r.title)}</span>`}
+      <a href="request.html#${r.id}" class="profile-post${r.image_url ? " has-image" : ""}">
+        ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
+        <span class="profile-post-fallback">${escapeHtml(r.title)}</span>
         <span class="profile-post-overlay"><strong>${escapeHtml(r.title)}</strong><small>${r.category || "Request"}</small></span>
       </a>`).join("");
   }
