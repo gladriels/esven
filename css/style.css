@@ -1673,3 +1673,15 @@ header.site-header .auth-user, .landing-header .auth-user,
 .landing-nav { background: rgba(17,17,17,.07); }
 .landing-header .btn-ghost, header.site-header .btn-ghost { color: #111; border-color: rgba(17,17,17,.25); }
 .landing-header .btn-ghost:hover, header.site-header .btn-ghost:hover { color: #111; border-color: #111; }
+/* Keep the landing and feed navigation dark; profile pages use the light header above. */
+.landing-header, body:not(.profile-page) header.site-header {
+  background: rgba(15,15,15,.88);
+  color: #fff;
+  border-color: rgba(255,255,255,.1);
+  box-shadow: 0 10px 28px rgba(0,0,0,.22);
+}
+.landing-header .landing-logo, .landing-header .auth-user,
+body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header.site-header .auth-user,
+.landing-header .landing-nav a { color: #fff; }
+.landing-header .landing-nav { background: rgba(255,255,255,.08); }
+.landing-header .btn-ghost, body:not(.profile-page) header.site-header .btn-ghost { color: #fff; border-color: rgba(255,255,255,.3); }
