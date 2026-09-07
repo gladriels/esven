@@ -1698,3 +1698,5 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
 }
 @media (max-width: 600px) { .landing-header, body:not(.profile-page) header.site-header { width: calc(100% - 20px); margin-top: 10px; padding: 11px 14px; } }
+.profile-follow-btn { margin: 4px 0 16px; }
+.profile-follow-btn.is-following { background: #fff; color: #111; border: 1px solid rgba(17,17,17,.2); }

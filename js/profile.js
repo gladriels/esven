@@ -54,6 +54,15 @@ async function loadProfile() {
   const recs = recResult.data;
 
   const { data: { user: viewer } } = await supabase.auth.getUser();
+  const [{ count: followerCount }, { count: followingCount }] = await Promise.all([
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id)
+  ]);
+  let viewerFollowsProfile = false;
+  if (viewer && viewer.id !== profile.id) {
+    const { data } = await supabase.from("follows").select("follower_id").eq("follower_id", viewer.id).eq("following_id", profile.id).maybeSingle();
+    viewerFollowsProfile = Boolean(data);
+  }
   let viewerIsAdmin = false;
   if (viewer) {
     const { data: viewerProfile } = await supabase.from("profiles").select("is_admin").eq("id", viewer.id).maybeSingle();
@@ -73,14 +82,31 @@ async function loadProfile() {
         <div class="profile-stats-row">
           <span><strong>${requests?.length ?? 0}</strong> requests</span>
           <span><strong>${recs?.length ?? 0}</strong> recommendations</span>
+          <span><strong>${followerCount ?? 0}</strong> followers</span>
+          <span><strong>${followingCount ?? 0}</strong> following</span>
           <span>Joined ${joined}</span>
         </div>
       </div>
     </div>
     ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
+    ${viewer && viewer.id !== profile.id ? `<button class="btn profile-follow-btn" id="follow-profile-btn">${viewerFollowsProfile ? "Following" : "Follow"}</button>` : ""}
     ${viewerIsAdmin && viewer.id !== profile.id ? `<button class="btn btn-danger" id="admin-remove-user">Remove account</button>` : ""}
     ${songEmbed ? `<iframe class="spotify-embed" src="${songEmbed}" width="100%" height="80" frameborder="0" allow="encrypted-media"></iframe>` : ""}
   `;
+
+  const followButton = document.getElementById("follow-profile-btn");
+  if (followButton) followButton.addEventListener("click", async () => {
+    followButton.disabled = true;
+    const query = viewerFollowsProfile
+      ? supabase.from("follows").delete().eq("follower_id", viewer.id).eq("following_id", profile.id)
+      : supabase.from("follows").insert({ follower_id: viewer.id, following_id: profile.id });
+    const { error } = await query;
+    if (error) { alert("Couldn't update follow: " + error.message); followButton.disabled = false; return; }
+    viewerFollowsProfile = !viewerFollowsProfile;
+    followButton.textContent = viewerFollowsProfile ? "Following" : "Follow";
+    followButton.classList.toggle("is-following", viewerFollowsProfile);
+    followButton.disabled = false;
+  });
 
   const removeButton = document.getElementById("admin-remove-user");
   if (removeButton) removeButton.addEventListener("click", async () => {

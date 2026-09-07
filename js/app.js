@@ -283,3 +283,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initNewRequestPanel();
   initImagePreview();
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-autoplay-audience]").forEach(link => {
+    link.addEventListener("click", () => sessionStorage.setItem("esven-autoplay-audience", link.dataset.autoplayAudience));
+  });
+});
