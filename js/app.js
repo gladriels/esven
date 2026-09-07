@@ -233,7 +233,6 @@ async function initNewRequestPanel() {
     panel.classList.add("open");
   };
   openBtn.addEventListener("click", openRequestPanel);
-  document.addEventListener("esven:open-request", openRequestPanel);
 
   closeBtn.addEventListener("click", () => panel.classList.remove("open"));
   panel.addEventListener("click", (e) => {

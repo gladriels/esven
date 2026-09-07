@@ -217,19 +217,10 @@ async function renderAuthBar() {
       <button id="edit-profile-btn" class="btn btn-ghost">Edit</button>
       <button id="signout-btn" class="btn btn-ghost">Sign out</button>
     `;
-    renderMemberWelcome(profile);
     document.getElementById("signout-btn").addEventListener("click", signOut);
     document.getElementById("avatar-btn").onclick = () => { window.location.href = `profile.html#${encodeURIComponent(profile?.username ?? "")}`; };
     document.getElementById("edit-profile-btn").onclick = () => openProfileModal(user, profile?.username, profile?.avatar_url);
   }
-}
-
-function renderMemberWelcome(profile) {
-  const welcome = document.getElementById("member-welcome");
-  if (!welcome) return;
-  welcome.hidden = false;
-  welcome.innerHTML = `<span>Welcome${profile?.username ? `, @${profile.username}` : ""}. What are you looking for today?</span><button type="button" class="btn" id="welcome-post-btn">Post a request</button>`;
-  document.getElementById("welcome-post-btn").onclick = () => document.dispatchEvent(new CustomEvent("esven:open-request"));
 }
 
 supabase.auth.onAuthStateChange((event) => {
