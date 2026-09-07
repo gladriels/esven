@@ -75,6 +75,15 @@ async function signInWithPassword(email, password) {
   return error;
 }
 
+async function signUpWithPassword(email, password) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: window.location.origin + "/index.html" }
+  });
+  return { data, error };
+}
+
 async function sendPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + "/index.html"
@@ -164,7 +173,7 @@ function renderLoginShell(bar) {
       <input type="password" id="login-password" placeholder="Password" minlength="6" autocomplete="current-password" />
       <button type="submit" class="btn" id="login-submit">Sign in</button>
     </form>
-    <div class="login-options"><button type="button" class="link-btn" id="magic-link-btn">Email me a login link</button><button type="button" class="link-btn" id="reset-password-btn">Set or reset password</button></div>
+    <div class="login-options"><button type="button" class="link-btn" id="signup-btn">Sign up</button><button type="button" class="link-btn" id="magic-link-btn">Email me a login link</button><button type="button" class="link-btn" id="reset-password-btn">Reset password</button></div>
     <span id="login-status" class="login-status"></span>
   `;
   const emailInput = document.getElementById("login-email");
@@ -177,6 +186,17 @@ function renderLoginShell(bar) {
     const error = await signInWithPassword(emailInput.value.trim(), passwordInput.value);
     status.textContent = error ? "Invalid email or password." : "Signed in.";
     if (!error) window.location.reload();
+  });
+
+  document.getElementById("signup-btn").addEventListener("click", async () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) { status.textContent = "Enter your email and a password to sign up."; return; }
+    status.textContent = "Creating account...";
+    const { data, error } = await signUpWithPassword(email, password);
+    if (error) { status.textContent = error.message; return; }
+    status.textContent = data.session ? "Account created. You are signed in." : "Check your email to confirm your account, then sign in.";
+    if (data.session) window.location.reload();
   });
 
   document.getElementById("magic-link-btn").addEventListener("click", async () => {
