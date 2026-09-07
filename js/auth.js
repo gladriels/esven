@@ -215,7 +215,7 @@ function renderLoginShell(bar) {
       if (isSignUp) {
         const { data, error } = await signUpWithPassword(email, password);
         if (error) { status.textContent = error.message; return; }
-        status.textContent = data.session ? "Account created. You are signed in." : "Check your email to confirm your account, then sign in.";
+        status.textContent = data.session ? "Account created. You are signed in." : "We sent a confirmation link. Check Inbox and Spam, then return here to sign in.";
         if (data.session) window.location.reload();
         return;
       }
@@ -251,11 +251,20 @@ async function renderAuthBar() {
       </button>
       <button id="signout-btn" class="btn btn-ghost">Sign out</button>
     `;
+    renderMemberWelcome(profile);
     document.getElementById("signout-btn").addEventListener("click", signOut);
     document.getElementById("avatar-btn").addEventListener("click", () => {
       openProfileModal(user, profile?.username, profile?.avatar_url);
     });
   }
+}
+
+function renderMemberWelcome(profile) {
+  const welcome = document.getElementById("member-welcome");
+  if (!welcome) return;
+  welcome.hidden = false;
+  welcome.innerHTML = `<span>Welcome${profile?.username ? `, @${profile.username}` : ""}. What are you looking for today?</span><button type="button" class="btn" id="welcome-post-btn">Post a request</button>`;
+  document.getElementById("welcome-post-btn").onclick = () => document.dispatchEvent(new CustomEvent("esven:open-request"));
 }
 
 supabase.auth.onAuthStateChange((event) => {

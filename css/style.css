@@ -1636,3 +1636,6 @@ header.site-header, .landing-header {
 .auth-submit { width: 100%; margin-top: 14px; }
 .auth-panel-switch { margin: 18px 0 0; text-align: center; color: var(--ink-soft); font-size: 13px; }
 .auth-panel-switch .link-btn { color: inherit; text-decoration: underline; }
+.member-welcome { display: inline-flex; align-items: center; gap: 12px; margin: 0 auto 18px; padding: 9px 10px 9px 14px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(0,0,0,.16); color: #fff; font-size: 13px; }
+.member-welcome .btn { padding: 8px 11px; font-size: 12px; }
+@media (max-width: 600px) { .member-welcome { max-width: calc(100vw - 32px); border-radius: 16px; } }
