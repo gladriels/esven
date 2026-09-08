@@ -1002,6 +1002,16 @@ textarea { resize: vertical; min-height: 70px; }
   padding: 0 32px 48px;
 }
 
+/* Shift the landing hero opening content slightly right on larger screens */
+@media (min-width: 601px) {
+  .hero-content {
+    padding-left: 96px;
+  }
+  .hero-stats {
+    padding-left: 96px;
+  }
+}
+
 .stat {
   display: flex;
   flex-direction: column;
