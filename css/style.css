@@ -970,7 +970,7 @@ textarea { resize: vertical; min-height: 70px; }
 .hero-content {
   position: relative;
   z-index: 2;
-  padding: 60px 32px 40px;
+  padding: 60px clamp(48px, 8vw, 140px) 40px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -999,7 +999,7 @@ textarea { resize: vertical; min-height: 70px; }
   display: flex;
   gap: 48px;
   flex-wrap: wrap;
-  padding: 0 32px 48px;
+  padding: 0 clamp(48px, 8vw, 140px) 48px;
 }
 
 .stat {
