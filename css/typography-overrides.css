@@ -41,6 +41,22 @@
   height: 32px !important;
   margin-right: 8px !important;
 }
+
+/* Mobile feed cards: avatar + name need to stay small enough that the
+   slim footer bar can actually fit them. This file's rules above use
+   !important and load after style.css, so the mobile shrink has to live
+   here too or it gets silently overridden. */
+@media (max-width: 600px) {
+  #board .ticket-footer .mini-avatar {
+    width: 12px !important;
+    height: 12px !important;
+    flex: 0 0 12px !important;
+    margin-right: 3px !important;
+  }
+  #board .ticket-footer .ticket-author {
+    font-size: 8.5px !important;
+  }
+}
 /* Force feed cards to always be visible — the scroll-fade animation
    was unreliable and left cards permanently invisible. */
 .ticket, .rec-card {

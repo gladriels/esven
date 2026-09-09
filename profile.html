@@ -127,6 +127,19 @@
   .profile-rec-note { font-size: 13px; margin: 0 0 6px; }
   .profile-rec-for { font-family: var(--mono); font-size: 11px; color: var(--accent); }
 
+  .liked-visibility-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 4px 0 14px;
+    padding: 10px 14px;
+    background: var(--pill);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
   @media (max-width: 600px) {
     .ig-header { gap: 16px; padding: 20px 0 12px; }
     .profile-avatar-big { width: 72px; height: 72px; }
@@ -145,8 +158,8 @@
     <div id="auth-bar"></div>
   </header>
   <div class="feed-tabs-row" id="feed-tabs">
-    <button type="button" class="feed-tab active" data-mode="shuffle">Shuffle</button>
-    <button type="button" class="feed-tab" data-mode="staffpick">Staff Picks</button>
+    <button type="button" class="feed-tab" data-mode="shuffle">Shuffle</button>
+    <button type="button" class="feed-tab active" data-mode="staffpick">Staff Picks</button>
     <button type="button" class="feed-tab" data-mode="recent">Recent</button>
   </div>
 </div>
@@ -161,6 +174,7 @@
   <div class="ig-tabs" id="profile-tabs">
     <button type="button" class="ig-tab active" data-tab="requests">Requests</button>
     <button type="button" class="ig-tab" data-tab="recs">Recommendations</button>
+    <button type="button" class="ig-tab" data-tab="liked">Liked</button>
   </div>
 
   <div id="profile-requests" class="ig-grid" data-panel="requests">
@@ -169,6 +183,16 @@
 
   <div id="profile-recs" class="profile-rec-list" data-panel="recs" hidden>
     <p class="empty-state">Loading...</p>
+  </div>
+
+  <div id="profile-liked-container" data-panel="liked" hidden>
+    <div class="liked-visibility-row" id="liked-visibility-row" hidden>
+      <span id="liked-visibility-label">Your liked posts are public</span>
+      <button type="button" class="btn btn-ghost" id="liked-visibility-toggle">Make private</button>
+    </div>
+    <div id="profile-liked" class="ig-grid">
+      <p class="empty-state">Loading...</p>
+    </div>
   </div>
 </main>
 

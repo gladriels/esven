@@ -629,17 +629,21 @@ textarea { resize: vertical; min-height: 70px; }
 }
 
 .detail-image {
+  position: relative;
   width: 100%;
-  max-height: 420px;
+  max-height: 70vh;
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 18px;
+  background: #0b0b0a;
+  display: flex;
 }
 .detail-image > img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-height: 70vh;
+  object-fit: contain;
   display: block;
+  margin: 0 auto;
 }
 
 /* ---------- Sections row (audience: Him/Her/Unisex) ---------- */
@@ -1842,9 +1846,9 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
 .messages-badge-count[hidden] { display: none; }
 
 @media (max-width: 600px) {
-  .logo, .landing-logo { display: none; }
-  header.site-header, .landing-header { justify-content: flex-end; }
-  #auth-bar { flex-wrap: nowrap !important; width: 100%; justify-content: flex-end; gap: 8px; }
+  .logo-word { font-size: 15px; }
+  .logo-mark { width: 20px; height: 20px; }
+  #auth-bar { flex-wrap: nowrap !important; justify-content: flex-end; gap: 8px; }
   .auth-entry-actions { flex-wrap: nowrap; gap: 6px; }
 
   .icon-btn .btn-label,
@@ -1958,26 +1962,22 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
 .trending-tab.active { background: #fff; color: #111; border-color: #fff; }
 
 /* Denser post chrome + smaller identity row on mobile feed cards. The
-   footer (avatar/name/price) drops out of flow and overlays the bottom of
-   the image instead of sitting in its own white bar — the card's height
-   becomes just the image's height, so the image gets all the space. */
+   footer (avatar/name/price) is back to a real, in-flow bar below the
+   image — kept as slim as it can be while still fitting the avatar and
+   name legibly. */
 @media (max-width: 600px) {
   .board { gap: 6px; }
-  #board .ticket { position: relative; }
   #board .ticket-footer {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    z-index: 2;
-    background: linear-gradient(to top, rgba(4,6,10,.88), rgba(4,6,10,.25) 75%, transparent);
+    background: rgba(255,255,255,.97);
     border-top: none;
-    padding: 22px 8px 7px;
-    font-size: 9px;
-    gap: 5px;
-    color: #fff;
+    padding: 5px 8px;
+    font-size: 8.5px;
+    gap: 4px;
+    color: #171717;
   }
-  #board .ticket-footer .ticket-author { color: #fff; }
-  #board .ticket-footer .mini-avatar { width: 13px; height: 13px; margin-right: 3px; }
-  #board .ticket-budget { font-size: 9px; color: #ffcf8e; }
+  #board .ticket-footer .ticket-author { color: #171717; }
+  #board .ticket-footer .mini-avatar { width: 12px; height: 12px; flex: 0 0 12px; margin-right: 3px; }
+  #board .ticket-budget { font-size: 8.5px; color: #a45d20; }
   #board .ticket-title {
     font-size: 12.5px;
     display: -webkit-box;
@@ -1985,11 +1985,11 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  #board .ticket-overlay { gap: 3px; padding: 8px; max-height: 60%; overflow: hidden; }
+  #board .ticket-overlay { gap: 3px; padding: 8px; }
   #board .ticket-cat { font-size: 8px; padding: 3px 6px; }
   .like-btn { padding: 6px 8px; top: 8px; right: 8px; }
   .like-btn svg { width: 13px; height: 13px; }
-  .ticket-song-badge { width: 21px; height: 21px; bottom: 42px; right: 8px; }
+  .ticket-song-badge { width: 21px; height: 21px; bottom: 8px; right: 8px; }
   .trending-tab { padding: 6px 11px; font-size: 10px; }
 }
 
@@ -2079,4 +2079,24 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
     -webkit-backdrop-filter: blur(6px);
     border: none;
   }
+  .landing-header .landing-logo {
+    background: rgba(4,6,10,.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 7px 13px 7px 9px;
+    border-radius: 999px;
+  }
 }
+
+/* ---------- Logo: monogram mark + wordmark, same on every page ---------- */
+.logo, .landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.logo-mark { color: var(--accent); flex: 0 0 auto; }
+.logo-word { font-family: 'Cormorant Garamond', serif; letter-spacing: .015em; }
+
+/* Feed tabs sit right under the icon row with minimal gap. */
+.feed-tabs-row { margin-top: 2px; }

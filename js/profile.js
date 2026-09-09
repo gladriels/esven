@@ -1,6 +1,6 @@
 const profileUsername = decodeURIComponent(window.location.hash.slice(1));
 let profileRequests = [];
-let profileFeedMode = "shuffle"; // "shuffle" | "staffpick" | "recent"
+let profileFeedMode = "staffpick"; // "shuffle" | "staffpick" | "recent"
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -29,7 +29,7 @@ async function loadProfile() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url, created_at, bio, profile_spotify_url")
+    .select("id, username, avatar_url, created_at, bio, profile_spotify_url, likes_are_public")
     .eq("username", profileUsername)
     .single();
 
@@ -161,6 +161,66 @@ async function loadProfile() {
       </a>
     `).join("");
   }
+
+  await loadLikedPosts(profile, isOwnProfile);
+}
+
+async function loadLikedPosts(profile, isOwnProfile) {
+  const likedContainer = document.getElementById("profile-liked");
+  const visibilityRow = document.getElementById("liked-visibility-row");
+
+  if (isOwnProfile) {
+    visibilityRow.hidden = false;
+    document.getElementById("liked-visibility-label").textContent =
+      profile.likes_are_public ? "Your liked posts are public" : "Your liked posts are private";
+    const toggleBtn = document.getElementById("liked-visibility-toggle");
+    toggleBtn.textContent = profile.likes_are_public ? "Make private" : "Make public";
+    toggleBtn.onclick = async () => {
+      const next = !profile.likes_are_public;
+      toggleBtn.disabled = true;
+      const { error } = await supabase.from("profiles").update({ likes_are_public: next }).eq("id", profile.id);
+      toggleBtn.disabled = false;
+      if (error) { alert("Couldn't update: " + error.message); return; }
+      profile.likes_are_public = next;
+      document.getElementById("liked-visibility-label").textContent = next ? "Your liked posts are public" : "Your liked posts are private";
+      toggleBtn.textContent = next ? "Make private" : "Make public";
+    };
+  } else {
+    visibilityRow.hidden = true;
+  }
+
+  if (!isOwnProfile && !profile.likes_are_public) {
+    likedContainer.innerHTML = `<p class="empty-state">This person keeps their liked posts private.</p>`;
+    return;
+  }
+
+  const { data: liked, error } = await supabase
+    .from("likes")
+    .select("request_id, created_at, requests(id, title, category, image_url)")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    likedContainer.innerHTML = `<p class="empty-state">Couldn't load liked posts: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  const posts = (liked ?? []).map(l => l.requests).filter(Boolean);
+
+  if (!posts.length) {
+    likedContainer.innerHTML = `<p class="empty-state">No liked posts yet.</p>`;
+    return;
+  }
+
+  likedContainer.innerHTML = posts.map(r => `
+    <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
+      ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
+      <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
+      <span class="ig-grid-item-overlay">
+        ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
+        <span class="ig-grid-item-name">${escapeHtml(r.title)}</span>
+      </span>
+    </a>`).join("");
 }
 
 function shuffleArray(list) {

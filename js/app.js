@@ -4,7 +4,7 @@ let currentUserId = null;
 let currentUserIsAdmin = false;
 let likesByRequest = new Map(); // request_id -> Set of user_ids who liked it
 let trendingMode = "recent"; // "recent" | "shuffle" | "staffpick"
-let feedMode = "shuffle"; // "shuffle" | "staffpick" | "recent" — the feed's own view, separate from trending's
+let feedMode = "staffpick"; // "shuffle" | "staffpick" | "recent" — the feed's own view, separate from trending's
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -142,15 +142,23 @@ function renderTrending() {
     return;
   }
 
-  strip.innerHTML = items.map(r => {
+  const showReorder = trendingMode === "staffpick" && currentUserIsAdmin;
+
+  strip.innerHTML = items.map((r, i) => {
     const likeCount = likesByRequest.get(r.id)?.size ?? 0;
     const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
     return `
-    <a href="request.html#${r.id}" class="trending-card">
+    <a href="request.html#${r.id}" class="trending-card" data-id="${r.id}">
       <div class="trending-image">
         <img src="${r.image_url}" alt="">
         ${currentUserIsAdmin ? `<button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>` : ""}
         <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
+        ${showReorder ? `
+          <div class="reorder-btns">
+            <button type="button" class="reorder-btn" data-swap-with="${items[i - 1]?.id ?? ""}" ${i === 0 ? "disabled" : ""} title="Move earlier" aria-label="Move earlier">&uarr;</button>
+            <button type="button" class="reorder-btn" data-swap-with="${items[i + 1]?.id ?? ""}" ${i === items.length - 1 ? "disabled" : ""} title="Move later" aria-label="Move later">&darr;</button>
+          </div>
+        ` : ""}
       </div>
       <p class="trending-title">${escapeHtml(r.title)}</p>
       <p class="trending-sub">${r.budget ? escapeHtml(r.budget) : (r.category ?? "")}</p>
@@ -160,6 +168,18 @@ function renderTrending() {
 
   wireLikeButtons(strip);
   wireStaffPickButtons(strip);
+
+  if (showReorder) {
+    strip.querySelectorAll(".reorder-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const id = btn.closest(".trending-card").dataset.id;
+        const otherId = btn.dataset.swapWith;
+        if (!otherId) return;
+        swapStaffPickRank(id, otherId);
+      });
+    });
+  }
 }
 
 function feedSourceList() {
@@ -191,6 +211,11 @@ function initFeedTabs() {
   });
 }
 
+function renderStaffPickViews() {
+  renderTrending();
+  renderFeed();
+}
+
 async function swapStaffPickRank(idA, idB) {
   const a = allRequests.find(r => r.id === idA);
   const b = allRequests.find(r => r.id === idB);
@@ -198,7 +223,7 @@ async function swapStaffPickRank(idA, idB) {
   const rankA = a.staff_pick_rank, rankB = b.staff_pick_rank;
   a.staff_pick_rank = rankB;
   b.staff_pick_rank = rankA;
-  renderFeed();
+  renderStaffPickViews();
   const [{ error: errA }, { error: errB }] = await Promise.all([
     supabase.from("requests").update({ staff_pick_rank: rankB }).eq("id", idA),
     supabase.from("requests").update({ staff_pick_rank: rankA }).eq("id", idB)
@@ -206,7 +231,7 @@ async function swapStaffPickRank(idA, idB) {
   if (errA || errB) {
     a.staff_pick_rank = rankA;
     b.staff_pick_rank = rankB;
-    renderFeed();
+    renderStaffPickViews();
     alert("Couldn't reorder staff picks.");
   }
 }

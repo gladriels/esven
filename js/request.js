@@ -67,11 +67,15 @@ async function loadRequest() {
     return;
   }
 
-  const { data: r, error } = await supabase
-    .from("requests")
-    .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles!requests_user_id_fkey(username, avatar_url)")
-    .eq("id", requestId)
-    .single();
+  const [{ data: r, error }, { data: likes }, user] = await Promise.all([
+    supabase
+      .from("requests")
+      .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles!requests_user_id_fkey(username, avatar_url)")
+      .eq("id", requestId)
+      .single(),
+    supabase.from("likes").select("user_id").eq("request_id", requestId),
+    getCurrentUser()
+  ]);
 
   if (error || !r) {
     detail.innerHTML = `<p class="empty-state">Request not found.</p>`;
@@ -81,9 +85,11 @@ async function loadRequest() {
   currentRequest = r;
   recordRecentlyViewed(r.id);
   const embed = spotifyEmbedUrl(r.spotify_url);
+  const likedBy = new Set((likes ?? []).map(l => l.user_id));
+  const isLiked = user ? likedBy.has(user.id) : false;
 
   detail.innerHTML = `
-    ${r.image_url ? `<div class="detail-image"><img src="${r.image_url}" alt=""></div>` : ""}
+    ${r.image_url ? `<div class="detail-image"><img src="${r.image_url}" alt=""><button type="button" class="like-btn${isLiked ? " is-liked" : ""}" id="detail-like-btn" aria-label="Like">${ICONS.heart}<span class="like-count">${likedBy.size ? likedBy.size : ""}</span></button></div>` : ""}
     ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
     <h1>${escapeHtml(r.title)}</h1>
     <p>${escapeHtml(r.description ?? "")}</p>
@@ -94,6 +100,28 @@ async function loadRequest() {
       <span>${new Date(r.created_at).toLocaleDateString()}</span>
     </div>
   `;
+
+  const likeButton = document.getElementById("detail-like-btn");
+  if (likeButton) {
+    likeButton.addEventListener("click", async () => {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) { alert("Sign in up top first to like a post."); return; }
+      const alreadyLiked = likedBy.has(currentUser.id);
+      if (alreadyLiked) likedBy.delete(currentUser.id); else likedBy.add(currentUser.id);
+      likeButton.classList.toggle("is-liked", !alreadyLiked);
+      likeButton.querySelector(".like-count").textContent = likedBy.size ? likedBy.size : "";
+
+      const { error: likeError } = alreadyLiked
+        ? await supabase.from("likes").delete().eq("request_id", r.id).eq("user_id", currentUser.id)
+        : await supabase.from("likes").insert({ request_id: r.id, user_id: currentUser.id });
+
+      if (likeError) {
+        if (alreadyLiked) likedBy.add(currentUser.id); else likedBy.delete(currentUser.id);
+        likeButton.classList.toggle("is-liked", alreadyLiked);
+        likeButton.querySelector(".like-count").textContent = likedBy.size ? likedBy.size : "";
+      }
+    });
+  }
 
   const playButton = detail.querySelector("[data-play-spotify]");
   if (playButton) {
