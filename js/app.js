@@ -98,6 +98,17 @@ function applyCategoryFromUrl() {
   });
 }
 
+// Instagram's bio-link field percent-encodes "#" (it becomes "%23"), which
+// turns a "#feed-section" fragment into a literal, non-existent path on the
+// server -> 404. A "?feed=1" query string survives that untouched, so bio
+// links should use that instead; this scrolls to the feed once the page
+// (and its layout) has settled.
+function scrollToFeedFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("feed")) return;
+  document.getElementById("feed-section")?.scrollIntoView({ behavior: "instant", block: "start" });
+}
+
 function shuffleArray(list) {
   const arr = list.slice();
   for (let i = arr.length - 1; i > 0; i--) {
@@ -492,6 +503,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initFeedTabs();
   initNewRequestPanel();
   initImagePreview();
+  scrollToFeedFromUrl();
 });
 
 document.addEventListener("DOMContentLoaded", () => {

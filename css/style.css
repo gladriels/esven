@@ -139,6 +139,10 @@ main {
   padding: 28px 24px 100px;
 }
 
+#feed-section {
+  scroll-margin-top: var(--header-h, 90px);
+}
+
 .page-title {
   font-family: var(--display);
   font-weight: 800;
