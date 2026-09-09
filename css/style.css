@@ -2106,54 +2106,49 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   .icon-btn svg { width: 15px !important; height: 15px !important; }
 }
 
-/* ---------- Text-only posts: a designed text card, not a title stamped
-   on a blank placeholder image. Hue varies per-post (stable, from the
-   post id) so a run of text posts doesn't look identical. ---------- */
+/* ---------- Text-only posts: a plain white card, bold title sized
+   inversely to its length (short = big statement, long = smaller but
+   still bold to fit) — no background image, no gradient. ---------- */
 #board .ticket-text {
   position: relative;
   overflow: hidden;
-  padding: 26px 20px 22px;
-  min-height: 190px;
+  padding: 24px 18px 20px;
+  min-height: 170px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 10px;
-  background:
-    radial-gradient(circle at 14% 12%, hsla(var(--text-hue), 70%, 62%, .32), transparent 55%),
-    linear-gradient(155deg, hsl(var(--text-hue) 38% 20%), hsl(calc(var(--text-hue) + 35) 45% 11%));
+  background: #fff;
 }
 #board .ticket-text .ticket-cat {
   align-self: flex-start;
-  background: rgba(255,255,255,.16);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  color: #fff;
+  background: var(--pill);
+  color: var(--accent);
   margin-bottom: 0;
 }
 .ticket-text-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 600;
-  font-size: 23px;
-  line-height: 1.28;
-  color: #fff;
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.18;
+  color: #111;
   margin: 0;
-  text-shadow: 0 2px 16px rgba(0,0,0,.25);
 }
 .ticket-text-desc {
   font-size: 12.5px;
   line-height: 1.55;
-  color: rgba(255,255,255,.72);
+  color: var(--ink-soft);
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.ticket-text .like-btn { top: 10px; right: 10px; }
-.ticket-text .ticket-song-badge { bottom: 10px; right: 10px; }
+.ticket-text .like-btn { top: 10px; right: 10px; color: #111; background: rgba(255,255,255,.7); backdrop-filter: blur(4px); }
+.ticket-text .like-btn.is-liked { background: rgba(232,74,107,.92); color: #fff; }
+.ticket-text .ticket-song-badge { bottom: 10px; right: 10px; background: rgba(17,17,17,.08); color: #111; }
 @media (max-width: 600px) {
-  #board .ticket-text { padding: 20px 16px 18px; min-height: 150px; gap: 8px; }
-  .ticket-text-title { font-size: 18px; }
+  #board .ticket-text { padding: 18px 14px 16px; min-height: 130px; gap: 6px; }
   .ticket-text-desc { font-size: 11px; -webkit-line-clamp: 3; }
 }
 

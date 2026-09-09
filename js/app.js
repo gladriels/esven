@@ -265,12 +265,16 @@ function wireStaffPickButtons(root) {
   });
 }
 
-// Stable per-post hue for text-only cards, so they don't share one flat
-// color but stay consistent across re-renders.
-function hueFromId(id) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return hash % 360;
+// Text-only cards size the title inversely to its length — short posts
+// read as a bold statement, long ones stay bold but shrink to fit.
+function titleFontSizeFor(text) {
+  const mobile = window.innerWidth <= 600;
+  const len = text.length;
+  if (len <= 15) return mobile ? 22 : 32;
+  if (len <= 30) return mobile ? 19 : 26;
+  if (len <= 60) return mobile ? 16 : 21;
+  if (len <= 100) return mobile ? 14 : 17;
+  return mobile ? 12 : 14;
 }
 
 function renderTicketMedia(r, likeButtonHtml) {
@@ -287,11 +291,11 @@ function renderTicketMedia(r, likeButtonHtml) {
         </div>`;
   }
   return `
-        <div class="ticket-text" style="--text-hue: ${hueFromId(r.id)}">
+        <div class="ticket-text">
           ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
           ${likeButtonHtml}
           ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-          <h3 class="ticket-text-title">${escapeHtml(r.title)}</h3>
+          <h3 class="ticket-text-title" style="font-size: ${titleFontSizeFor(r.title)}px">${escapeHtml(r.title)}</h3>
           ${r.description ? `<p class="ticket-text-desc">${escapeHtml(r.description)}</p>` : ""}
         </div>`;
 }
