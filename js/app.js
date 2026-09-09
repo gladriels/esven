@@ -349,10 +349,13 @@ function renderFeed() {
         </div>
       </a>
       ${r.user_id === currentUserId || currentUserIsAdmin ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
-      ${showReorder ? `
+      ${currentUserIsAdmin ? `
         <div class="reorder-btns">
-          <button type="button" class="reorder-btn" data-swap-with="${filtered[i - 1]?.id ?? ""}" ${i === 0 ? "disabled" : ""} title="Move earlier" aria-label="Move earlier">&uarr;</button>
-          <button type="button" class="reorder-btn" data-swap-with="${filtered[i + 1]?.id ?? ""}" ${i === filtered.length - 1 ? "disabled" : ""} title="Move later" aria-label="Move later">&darr;</button>
+          <button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>
+          ${showReorder ? `
+            <button type="button" class="reorder-btn" data-swap-with="${filtered[i - 1]?.id ?? ""}" ${i === 0 ? "disabled" : ""} title="Move earlier" aria-label="Move earlier">&uarr;</button>
+            <button type="button" class="reorder-btn" data-swap-with="${filtered[i + 1]?.id ?? ""}" ${i === filtered.length - 1 ? "disabled" : ""} title="Move later" aria-label="Move later">&darr;</button>
+          ` : ""}
         </div>
       ` : ""}
     </div>
@@ -360,6 +363,7 @@ function renderFeed() {
   }).join("");
 
   wireLikeButtons(board);
+  wireStaffPickButtons(board);
 
   if (showReorder) {
     board.querySelectorAll(".reorder-btn").forEach(btn => {
