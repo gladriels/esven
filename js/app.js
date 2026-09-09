@@ -144,8 +144,6 @@ function renderTrending() {
     return;
   }
 
-  const showReorder = feedMode === "staffpick" && currentUserIsAdmin;
-
   strip.innerHTML = items.map((r, i) => {
     const likeCount = likesByRequest.get(r.id)?.size ?? 0;
     const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
@@ -155,12 +153,6 @@ function renderTrending() {
         <img src="${r.image_url}" alt="">
         ${currentUserIsAdmin ? `<button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>` : ""}
         <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
-        ${showReorder ? `
-          <div class="reorder-btns">
-            <button type="button" class="reorder-btn" data-swap-with="${items[i - 1]?.id ?? ""}" ${i === 0 ? "disabled" : ""} title="Move earlier" aria-label="Move earlier">&uarr;</button>
-            <button type="button" class="reorder-btn" data-swap-with="${items[i + 1]?.id ?? ""}" ${i === items.length - 1 ? "disabled" : ""} title="Move later" aria-label="Move later">&darr;</button>
-          </div>
-        ` : ""}
       </div>
       <p class="trending-title">${escapeHtml(r.title)}</p>
       <p class="trending-sub">${r.budget ? escapeHtml(r.budget) : (r.category ?? "")}</p>
@@ -170,18 +162,6 @@ function renderTrending() {
 
   wireLikeButtons(strip);
   wireStaffPickButtons(strip);
-
-  if (showReorder) {
-    strip.querySelectorAll(".reorder-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        const id = btn.closest(".trending-card").dataset.id;
-        const otherId = btn.dataset.swapWith;
-        if (!otherId) return;
-        swapStaffPickRank(id, otherId);
-      });
-    });
-  }
 }
 
 function feedSourceList() {
@@ -214,31 +194,6 @@ function initFeedTabs() {
       renderTrending();
     });
   });
-}
-
-function renderStaffPickViews() {
-  renderTrending();
-  renderFeed();
-}
-
-async function swapStaffPickRank(idA, idB) {
-  const a = allRequests.find(r => r.id === idA);
-  const b = allRequests.find(r => r.id === idB);
-  if (!a || !b) return;
-  const rankA = a.staff_pick_rank, rankB = b.staff_pick_rank;
-  a.staff_pick_rank = rankB;
-  b.staff_pick_rank = rankA;
-  renderStaffPickViews();
-  const [{ error: errA }, { error: errB }] = await Promise.all([
-    supabase.from("requests").update({ staff_pick_rank: rankB }).eq("id", idA),
-    supabase.from("requests").update({ staff_pick_rank: rankA }).eq("id", idB)
-  ]);
-  if (errA || errB) {
-    a.staff_pick_rank = rankA;
-    b.staff_pick_rank = rankB;
-    renderStaffPickViews();
-    alert("Couldn't reorder staff picks.");
-  }
 }
 
 async function toggleLike(requestId, btn) {
@@ -325,8 +280,6 @@ function renderFeed() {
     return;
   }
 
-  const showReorder = feedMode === "staffpick" && currentUserIsAdmin;
-
   board.innerHTML = filtered.map((r, i) => {
     const likeCount = likesByRequest.get(r.id)?.size ?? 0;
     const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
@@ -350,13 +303,7 @@ function renderFeed() {
       </a>
       ${r.user_id === currentUserId || currentUserIsAdmin ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
       ${currentUserIsAdmin ? `
-        <div class="reorder-btns">
-          <button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>
-          ${showReorder ? `
-            <button type="button" class="reorder-btn" data-swap-with="${filtered[i - 1]?.id ?? ""}" ${i === 0 ? "disabled" : ""} title="Move earlier" aria-label="Move earlier">&uarr;</button>
-            <button type="button" class="reorder-btn" data-swap-with="${filtered[i + 1]?.id ?? ""}" ${i === filtered.length - 1 ? "disabled" : ""} title="Move later" aria-label="Move later">&darr;</button>
-          ` : ""}
-        </div>
+        <button type="button" class="staff-pick-toggle standalone${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>
       ` : ""}
     </div>
   `;
@@ -364,19 +311,6 @@ function renderFeed() {
 
   wireLikeButtons(board);
   wireStaffPickButtons(board);
-
-  if (showReorder) {
-    board.querySelectorAll(".reorder-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        const wrap = btn.closest(".ticket-wrap");
-        const id = wrap.querySelector(".ticket").dataset.id;
-        const otherId = btn.dataset.swapWith;
-        if (!otherId) return;
-        swapStaffPickRank(id, otherId);
-      });
-    });
-  }
 
   document.querySelectorAll(".ticket[data-spotify]").forEach(ticket => {
     ticket.addEventListener("click", () => {

@@ -1973,7 +1973,7 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
    image — kept as slim as it can be while still fitting the avatar and
    name legibly. */
 @media (max-width: 600px) {
-  .board { gap: 3px; }
+  .board, #board.board { gap: 2px !important; margin-inline: -12px; }
   #board .ticket-footer {
     background: rgba(255,255,255,.97);
     border-top: none;
@@ -1985,7 +1985,7 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   #board .ticket-footer .ticket-author { color: #171717; }
   #board .ticket-footer .mini-avatar { width: 18px; height: 18px; flex: 0 0 18px; margin-right: 5px; }
   #board .ticket-budget { font-size: 9px; color: #a45d20; }
-  #board .ticket, .trending-card { border: none !important; }
+  #board .ticket, .trending-card { border: none !important; box-shadow: none !important; }
   #board .ticket-title {
     font-size: 12.5px;
     display: -webkit-box;
@@ -2041,35 +2041,9 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
 .request-page .feed-tab:hover, body:not(.landing-body):not(.request-page) .feed-tab:hover { color: #111; }
 .request-page .feed-tab.active, body:not(.landing-body):not(.request-page) .feed-tab.active { background: rgba(17,17,17,.08); color: #111; }
 
-/* Staff-pick reorder controls (admin only, Staff Picks tab only). */
-.reorder-btns {
-  position: absolute;
-  z-index: 3;
-  bottom: 10px;
-  left: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.reorder-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(4,6,10,.6);
-  color: #fff;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.reorder-btn:disabled { opacity: .3; cursor: default; }
-
-/* On the main feed, the star toggle shares the bottom-left stack with
-   the reorder arrows (top-left is already taken by delete). */
-.reorder-btns .staff-pick-toggle { position: static; width: 24px; height: 24px; }
+/* On the main feed, delete (if any) already owns top-left, so the
+   admin-only staff-pick star sits bottom-left instead. */
+.staff-pick-toggle.standalone { top: auto; bottom: 10px; }
 
 /* Mobile home feed: drop the header bar entirely, keep floating icons +
    feed tabs fixed together in front of the scrolling posts. */
