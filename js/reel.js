@@ -32,7 +32,7 @@ async function loadReel() {
 
   let query = supabase
     .from("requests")
-    .select("id, title, description, budget, category, audience, image_url, spotify_url, created_at, profiles(username)")
+    .select("id, title, description, budget, category, audience, image_url, spotify_url, created_at, profiles!requests_user_id_fkey(username)")
     .eq("status", "open")
     .order("created_at", { ascending: false });
 

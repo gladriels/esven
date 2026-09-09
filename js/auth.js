@@ -58,8 +58,14 @@ function renderInstagramBrowserPrompt() {
 }
 
 async function getCurrentUser() {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  // getSession() reads the cached session from local storage (no network
+  // round trip); getUser() re-validates the JWT against the server every
+  // call, which was adding several redundant round trips to every page
+  // load. RLS enforces real permissions server-side either way, so this
+  // is safe for the UI-only checks (auth gating, "is this my post") that
+  // read currentUserId throughout the app.
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user ?? null;
 }
 
 async function sendMagicLink(email) {
@@ -210,12 +216,12 @@ async function renderAuthBar() {
       .single();
 
     bar.innerHTML = `
-      <button id="avatar-btn" class="avatar-btn">
+      <button id="avatar-btn" class="avatar-btn" title="@${profile?.username ?? "you"}" aria-label="Your profile">
         ${profile?.avatar_url ? `<img src="${profile.avatar_url}" class="avatar-thumb" />` : `<span class="avatar-thumb avatar-thumb-empty"></span>`}
         <span class="auth-user">@${profile?.username ?? "you"}</span>
       </button>
-      <button id="edit-profile-btn" class="btn btn-ghost">Edit</button>
-      <button id="signout-btn" class="btn btn-ghost">Sign out</button>
+      <button id="edit-profile-btn" class="btn btn-ghost icon-btn" title="Edit profile" aria-label="Edit profile">${ICONS.pencil}<span class="btn-label">Edit</span></button>
+      <button id="signout-btn" class="btn btn-ghost icon-btn" title="Sign out" aria-label="Sign out">${ICONS.logout}<span class="btn-label">Sign out</span></button>
     `;
     document.getElementById("signout-btn").addEventListener("click", signOut);
     document.getElementById("avatar-btn").onclick = () => { window.location.href = `profile.html#${encodeURIComponent(profile?.username ?? "")}`; };

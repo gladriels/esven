@@ -22,7 +22,7 @@ async function loadSolved() {
   // "Solved" = a request that has at least one favorited recommendation.
   const { data: favRecs, error } = await supabase
     .from("recommendations")
-    .select("request_id, requests(id, title, image_url, profiles(username))")
+    .select("request_id, requests(id, title, image_url, profiles!requests_user_id_fkey(username))")
     .eq("is_favorite", true)
     .limit(12);
 

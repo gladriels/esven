@@ -2,6 +2,8 @@ let activeCategory = "";
 let allRequests = [];
 let currentUserId = null;
 let currentUserIsAdmin = false;
+let likesByRequest = new Map(); // request_id -> Set of user_ids who liked it
+let trendingMode = "recent"; // "recent" | "shuffle" | "staffpick"
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -37,21 +39,24 @@ async function loadFeed() {
 
   const requestsQuery = supabase
     .from("requests")
-    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, user_id, created_at, profiles(username, avatar_url)")
+    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, is_staff_pick, user_id, created_at, profiles!requests_user_id_fkey(username, avatar_url)")
     .eq("status", "open")
     .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
 
-  const [{ data: requests, error }, { data: { user } }] = await Promise.all([
+  const [{ data: requests, error }, user, { data: likes }] = await Promise.all([
     requestsQuery,
-    supabase.auth.getUser()
+    getCurrentUser(),
+    supabase.from("likes").select("request_id, user_id")
   ]);
   currentUserId = user?.id ?? null;
   currentUserIsAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-    currentUserIsAdmin = profile?.is_admin === true;
-  }
+
+  likesByRequest = new Map();
+  (likes ?? []).forEach(({ request_id, user_id }) => {
+    if (!likesByRequest.has(request_id)) likesByRequest.set(request_id, new Set());
+    likesByRequest.get(request_id).add(user_id);
+  });
 
   if (error) {
     board.innerHTML = `<p class="empty-state">Couldn't load requests. Please refresh and try again.</p>`;
@@ -62,6 +67,12 @@ async function loadFeed() {
   renderTrending();
   renderFeed();
   renderSectionTiles();
+
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
+    currentUserIsAdmin = profile?.is_admin === true;
+    if (currentUserIsAdmin) { renderTrending(); renderFeed(); }
+  }
 }
 
 function renderSectionTiles() {
@@ -87,27 +98,143 @@ function applyCategoryFromUrl() {
   });
 }
 
+function shuffleArray(list) {
+  const arr = list.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function trendingSourceList() {
+  const withImages = allRequests.filter(r => r.image_url);
+  if (trendingMode === "shuffle") return shuffleArray(withImages).slice(0, 10);
+  if (trendingMode === "staffpick") return withImages.filter(r => r.is_staff_pick).slice(0, 10);
+  return withImages.slice(0, 10); // "recent" — query already orders by created_at desc
+}
+
 function renderTrending() {
   const strip = document.getElementById("trending-strip");
   const heading = document.getElementById("trending-heading");
+  const tabs = document.getElementById("trending-tabs");
   if (!strip) return;
-  const withImages = allRequests.filter(r => r.image_url).slice(0, 10);
+  const withImages = allRequests.filter(r => r.image_url);
 
   if (!withImages.length) {
     strip.style.display = "none";
     heading.style.display = "none";
+    if (tabs) tabs.style.display = "none";
     return;
   }
   strip.style.display = "flex";
   heading.style.display = "flex";
+  if (tabs) {
+    tabs.style.display = "flex";
+    tabs.querySelectorAll(".trending-tab").forEach(btn => btn.classList.toggle("active", btn.dataset.mode === trendingMode));
+  }
 
-  strip.innerHTML = withImages.map(r => `
+  const items = trendingSourceList();
+
+  if (!items.length) {
+    strip.innerHTML = `<p class="empty-state">Nothing here yet.</p>`;
+    return;
+  }
+
+  strip.innerHTML = items.map(r => {
+    const likeCount = likesByRequest.get(r.id)?.size ?? 0;
+    const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
+    return `
     <a href="request.html#${r.id}" class="trending-card">
-      <div class="trending-image"><img src="${r.image_url}" alt=""></div>
+      <div class="trending-image">
+        <img src="${r.image_url}" alt="">
+        ${currentUserIsAdmin ? `<button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>` : ""}
+        <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
+      </div>
       <p class="trending-title">${escapeHtml(r.title)}</p>
       <p class="trending-sub">${r.budget ? escapeHtml(r.budget) : (r.category ?? "")}</p>
     </a>
-  `).join("");
+  `;
+  }).join("");
+
+  wireLikeButtons(strip);
+  wireStaffPickButtons(strip);
+}
+
+function initTrendingTabs() {
+  const tabs = document.getElementById("trending-tabs");
+  if (!tabs) return;
+  tabs.addEventListener("click", (e) => {
+    const btn = e.target.closest(".trending-tab");
+    if (!btn) return;
+    trendingMode = btn.dataset.mode;
+    renderTrending();
+  });
+}
+
+async function toggleLike(requestId, btn) {
+  const user = await getCurrentUser();
+  if (!user) {
+    alert("Sign in up top first to like a post.");
+    return;
+  }
+  const likedBy = likesByRequest.get(requestId) ?? new Set();
+  const alreadyLiked = likedBy.has(user.id);
+
+  // Optimistic UI update, then reconcile with the server.
+  if (alreadyLiked) likedBy.delete(user.id); else likedBy.add(user.id);
+  likesByRequest.set(requestId, likedBy);
+  paintLikeButton(btn, likedBy, user.id);
+
+  const { error } = alreadyLiked
+    ? await supabase.from("likes").delete().eq("request_id", requestId).eq("user_id", user.id)
+    : await supabase.from("likes").insert({ request_id: requestId, user_id: user.id });
+
+  if (error) {
+    // Roll back on failure.
+    if (alreadyLiked) likedBy.add(user.id); else likedBy.delete(user.id);
+    likesByRequest.set(requestId, likedBy);
+    paintLikeButton(btn, likedBy, user.id);
+  }
+}
+
+function paintLikeButton(btn, likedBy, userId) {
+  const isLiked = likedBy.has(userId);
+  btn.classList.toggle("is-liked", isLiked);
+  const countEl = btn.querySelector(".like-count");
+  if (countEl) countEl.textContent = likedBy.size ? likedBy.size : "";
+}
+
+function wireLikeButtons(root) {
+  root.querySelectorAll(".like-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleLike(btn.dataset.id, btn);
+    });
+  });
+}
+
+function wireStaffPickButtons(root) {
+  root.querySelectorAll(".staff-pick-toggle").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const request = allRequests.find(r => r.id === id);
+      if (!request) return;
+      const next = !request.is_staff_pick;
+      request.is_staff_pick = next;
+      btn.classList.toggle("is-picked", next);
+      btn.title = next ? "Remove staff pick" : "Mark as staff pick";
+      const { error } = await supabase.from("requests").update({ is_staff_pick: next }).eq("id", id);
+      if (error) {
+        request.is_staff_pick = !next;
+        btn.classList.toggle("is-picked", !next);
+        alert("Couldn't update staff pick: " + error.message);
+      }
+    });
+  });
 }
 
 function renderFeed() {
@@ -121,16 +248,20 @@ function renderFeed() {
     return;
   }
 
-  board.innerHTML = filtered.map(r => `
+  board.innerHTML = filtered.map(r => {
+    const likeCount = likesByRequest.get(r.id)?.size ?? 0;
+    const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
+    return `
     <div class="ticket-wrap">
       <a href="request.html#${r.id}" class="ticket${r.spotify_url ? " has-spotify" : ""}" data-id="${r.id}"${r.spotify_url ? ` data-spotify="${escapeHtml(r.spotify_url)}"` : ""}${r.image_url ? ` style="--post-image: url('${escapeHtml(r.image_url)}')"` : ""}>
         ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
         <div class="ticket-image">
           ${r.image_url ? `<img src="${r.image_url}" alt="">` : `<span class="ticket-image-fallback"></span>`}
+          ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
+          <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
           <div class="ticket-overlay">
             ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
             <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
-            ${r.spotify_url ? `<span class="ticket-song">&#9834; song attached</span>` : ""}
           </div>
         </div>
         <div class="ticket-footer">
@@ -140,7 +271,10 @@ function renderFeed() {
       </a>
       ${r.user_id === currentUserId || currentUserIsAdmin ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
     </div>
-  `).join("");
+  `;
+  }).join("");
+
+  wireLikeButtons(board);
 
   document.querySelectorAll(".ticket[data-spotify]").forEach(ticket => {
     ticket.addEventListener("click", () => {
@@ -283,6 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
   applyCategoryFromUrl();
   loadFeed();
   initCategoryRow();
+  initTrendingTabs();
   initNewRequestPanel();
   initImagePreview();
 });

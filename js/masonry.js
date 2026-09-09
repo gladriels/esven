@@ -54,4 +54,13 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTimeout(window.__masonryResizeTimer);
     window.__masonryResizeTimer = setTimeout(layoutAllMasonryBoards, 150);
   });
+
+  // Custom @font-face fonts (Inter, IBM Plex Mono, Cormorant Garamond) can
+  // finish downloading after the initial layout pass, especially on slow
+  // mobile connections. That swap reflows card text without firing any of
+  // the events above, leaving row spans stale and cards overlapping —
+  // re-measure once web fonts are actually ready.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(layoutAllMasonryBoards);
+  }
 });

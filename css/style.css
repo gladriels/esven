@@ -681,6 +681,7 @@ textarea { resize: vertical; min-height: 70px; }
   font-weight: 700;
   font-size: 14px;
   margin: 0 0 2px;
+  color: #fff;
 }
 
 .trending-sub {
@@ -898,7 +899,7 @@ textarea { resize: vertical; min-height: 70px; }
   inset: 0;
   background:
     linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.75)),
-    url('images/cover-hero.jpg');
+    url('../images/cover-hero.jpg');
   background-size: cover;
   background-position: center;
   pointer-events: none;
@@ -1805,4 +1806,165 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   #board .ticket { border-radius: 14px; }
   #board .ticket-overlay { padding: 10px; }
   #board .ticket-footer { padding: 8px 12px; }
+}
+
+/* ---------- Requested pass: icon-only mobile header, like button, song
+   badge, trending tabs, denser post chrome ---------- */
+
+.landing-body .hero { padding-top: var(--header-h, 82px); }
+
+/* Icon buttons (Edit / Sign out / Messages): icon + label on desktop,
+   label hides at mobile widths below. */
+.icon-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.icon-btn svg { width: 15px; height: 15px; flex: 0 0 auto; display: block; }
+
+.messages-badge-btn { position: relative; }
+.messages-badge-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  box-shadow: 0 0 0 2px rgba(15,15,15,.88);
+}
+.messages-badge-count[hidden] { display: none; }
+
+@media (max-width: 600px) {
+  .logo, .landing-logo { display: none; }
+  header.site-header, .landing-header { justify-content: flex-end; }
+  #auth-bar { flex-wrap: nowrap !important; width: 100%; justify-content: flex-end; gap: 8px; }
+  .auth-entry-actions { flex-wrap: nowrap; gap: 6px; }
+
+  .icon-btn .btn-label,
+  .avatar-btn .auth-user { display: none; }
+
+  .icon-btn, .avatar-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0 !important;
+    justify-content: center;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    gap: 0;
+  }
+  .avatar-thumb, .avatar-thumb-empty { width: 30px; height: 30px; }
+  .messages-badge-count { top: -3px; right: -3px; }
+}
+
+/* Song badge: small icon in the image corner instead of a text row. */
+.ticket-song-badge {
+  position: absolute;
+  z-index: 2;
+  bottom: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(4,6,10,.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  pointer-events: none;
+}
+.ticket-song-badge svg { width: 12px; height: 12px; }
+
+/* Like button, feed cards + trending strip. */
+.like-btn {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(4,6,10,.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  transition: transform .15s ease, background .15s ease;
+}
+.like-btn:hover { transform: scale(1.06); background: rgba(4,6,10,.7); }
+.like-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.like-btn.is-liked { background: rgba(232,74,107,.92); }
+.like-btn.is-liked svg { fill: currentColor; }
+.like-btn .like-count:empty { display: none; }
+
+.trending-image, #board .ticket-image { position: relative; }
+
+.staff-pick-toggle {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  left: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(4,6,10,.5);
+  backdrop-filter: blur(4px);
+  color: rgba(255,255,255,.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.staff-pick-toggle svg { width: 13px; height: 13px; }
+.staff-pick-toggle.is-picked { background: var(--accent); color: #111; }
+
+/* Trending tabs: Shuffle / Staff Picks / Recent. */
+.trending-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.trending-tab {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.65);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.trending-tab:hover { color: #fff; border-color: rgba(255,255,255,.32); }
+.trending-tab.active { background: #fff; color: #111; border-color: #fff; }
+
+/* Denser post chrome + smaller identity row on mobile feed cards. */
+@media (max-width: 600px) {
+  .board { gap: 6px; }
+  #board .ticket-footer { padding: 6px 9px; font-size: 9.5px; gap: 6px; }
+  #board .ticket-footer .mini-avatar { width: 15px; height: 15px; margin-right: 4px; }
+  #board .ticket-budget { font-size: 9.5px; }
+  #board .ticket-overlay { gap: 4px; }
+  .like-btn { padding: 6px 8px; top: 8px; right: 8px; }
+  .like-btn svg { width: 13px; height: 13px; }
+  .ticket-song-badge { width: 21px; height: 21px; bottom: 8px; right: 8px; }
+  .trending-tab { padding: 6px 11px; font-size: 10px; }
 }

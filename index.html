@@ -39,6 +39,11 @@
   <div class="section-label-row" id="trending-heading" style="display:none;">
     <h2>Trending</h2>
   </div>
+  <div class="trending-tabs" id="trending-tabs" style="display:none;">
+    <button type="button" class="trending-tab" data-mode="shuffle">Shuffle</button>
+    <button type="button" class="trending-tab" data-mode="staffpick">Staff Picks</button>
+    <button type="button" class="trending-tab active" data-mode="recent">Recent</button>
+  </div>
   <div class="trending-row" id="trending-strip"></div>
 
   <div class="sections-row" id="sections-row">
@@ -136,6 +141,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
+<script src="js/icons.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/push-config.js"></script>
 <script src="js/push.js"></script>

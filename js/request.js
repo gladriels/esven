@@ -69,7 +69,7 @@ async function loadRequest() {
 
   const { data: r, error } = await supabase
     .from("requests")
-    .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles(username, avatar_url)")
+    .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles!requests_user_id_fkey(username, avatar_url)")
     .eq("id", requestId)
     .single();
 

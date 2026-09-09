@@ -28,8 +28,10 @@ async function injectMessagesBadge(bar, user) {
   const badge = document.createElement("button");
   badge.type = "button";
   badge.id = "messages-badge-btn";
-  badge.className = "btn btn-ghost messages-badge-btn";
-  badge.innerHTML = `Messages <span class="messages-badge-count" id="messages-badge-count" hidden></span>`;
+  badge.className = "btn btn-ghost messages-badge-btn icon-btn";
+  badge.title = "Messages";
+  badge.setAttribute("aria-label", "Messages");
+  badge.innerHTML = `${ICONS.inbox}<span class="btn-label">Messages</span><span class="messages-badge-count" id="messages-badge-count" hidden></span>`;
   badge.onclick = () => { window.location.href = "messages.html"; };
   bar.insertBefore(badge, bar.firstChild);
 
