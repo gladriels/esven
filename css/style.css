@@ -1973,7 +1973,7 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
    image — kept as slim as it can be while still fitting the avatar and
    name legibly. */
 @media (max-width: 600px) {
-  .board, #board.board { gap: 2px !important; margin-inline: -12px; }
+  .board, #board.board { gap: 7px !important; margin-inline: -6px; }
   #board .ticket-footer {
     background: rgba(255,255,255,.97);
     border-top: none;
@@ -2104,4 +2104,55 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   .icon-btn, .avatar-btn { width: 34px !important; height: 34px !important; min-width: 34px !important; }
   .avatar-thumb, .avatar-thumb-empty { width: 30px !important; height: 30px !important; }
   .icon-btn svg { width: 15px !important; height: 15px !important; }
+}
+
+/* ---------- Text-only posts: a designed text card, not a title stamped
+   on a blank placeholder image. Hue varies per-post (stable, from the
+   post id) so a run of text posts doesn't look identical. ---------- */
+#board .ticket-text {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 20px 22px;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  background:
+    radial-gradient(circle at 14% 12%, hsla(var(--text-hue), 70%, 62%, .32), transparent 55%),
+    linear-gradient(155deg, hsl(var(--text-hue) 38% 20%), hsl(calc(var(--text-hue) + 35) 45% 11%));
+}
+#board .ticket-text .ticket-cat {
+  align-self: flex-start;
+  background: rgba(255,255,255,.16);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff;
+  margin-bottom: 0;
+}
+.ticket-text-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 23px;
+  line-height: 1.28;
+  color: #fff;
+  margin: 0;
+  text-shadow: 0 2px 16px rgba(0,0,0,.25);
+}
+.ticket-text-desc {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255,255,255,.72);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ticket-text .like-btn { top: 10px; right: 10px; }
+.ticket-text .ticket-song-badge { bottom: 10px; right: 10px; }
+@media (max-width: 600px) {
+  #board .ticket-text { padding: 20px 16px 18px; min-height: 150px; gap: 8px; }
+  .ticket-text-title { font-size: 18px; }
+  .ticket-text-desc { font-size: 11px; -webkit-line-clamp: 3; }
 }

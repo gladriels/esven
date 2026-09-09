@@ -265,6 +265,37 @@ function wireStaffPickButtons(root) {
   });
 }
 
+// Stable per-post hue for text-only cards, so they don't share one flat
+// color but stay consistent across re-renders.
+function hueFromId(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return hash % 360;
+}
+
+function renderTicketMedia(r, likeButtonHtml) {
+  if (r.image_url) {
+    return `
+        <div class="ticket-image">
+          <img src="${r.image_url}" alt="">
+          ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
+          ${likeButtonHtml}
+          <div class="ticket-overlay">
+            ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
+            <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
+          </div>
+        </div>`;
+  }
+  return `
+        <div class="ticket-text" style="--text-hue: ${hueFromId(r.id)}">
+          ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
+          ${likeButtonHtml}
+          ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
+          <h3 class="ticket-text-title">${escapeHtml(r.title)}</h3>
+          ${r.description ? `<p class="ticket-text-desc">${escapeHtml(r.description)}</p>` : ""}
+        </div>`;
+}
+
 function renderFeed() {
   const board = document.getElementById("board");
   const base = feedSourceList();
@@ -283,19 +314,12 @@ function renderFeed() {
   board.innerHTML = filtered.map((r, i) => {
     const likeCount = likesByRequest.get(r.id)?.size ?? 0;
     const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
+    const likeButtonHtml = `<button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>`;
     return `
     <div class="ticket-wrap">
-      <a href="request.html#${r.id}" class="ticket${r.spotify_url ? " has-spotify" : ""}" data-id="${r.id}"${r.spotify_url ? ` data-spotify="${escapeHtml(r.spotify_url)}"` : ""}${r.image_url ? ` style="--post-image: url('${escapeHtml(r.image_url)}')"` : ""}>
+      <a href="request.html#${r.id}" class="ticket${r.spotify_url ? " has-spotify" : ""}${r.image_url ? "" : " ticket-text-only"}" data-id="${r.id}"${r.spotify_url ? ` data-spotify="${escapeHtml(r.spotify_url)}"` : ""}${r.image_url ? ` style="--post-image: url('${escapeHtml(r.image_url)}')"` : ""}>
         ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
-        <div class="ticket-image">
-          ${r.image_url ? `<img src="${r.image_url}" alt="">` : `<span class="ticket-image-fallback"></span>`}
-          ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
-          <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
-          <div class="ticket-overlay">
-            ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-            <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
-          </div>
-        </div>
+        ${renderTicketMedia(r, likeButtonHtml)}
         <div class="ticket-footer">
           <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${r.profiles?.username ?? "someone"}</span>
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
