@@ -91,7 +91,7 @@ async function loadProfile() {
         </div>
         <div class="ig-stats-row">
           <div class="ig-stat"><strong>${postCount}</strong><span>Posts</span></div>
-          <div class="ig-stat"><strong>${followerCount ?? 0}</strong><span>Followers</span></div>
+          <div class="ig-stat"><strong id="stat-followers">${followerCount ?? 0}</strong><span>Followers</span></div>
           <div class="ig-stat"><strong>${followingCount ?? 0}</strong><span>Following</span></div>
         </div>
         ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
@@ -113,6 +113,8 @@ async function loadProfile() {
     followButton.textContent = viewerFollowsProfile ? "Following" : "Follow";
     followButton.classList.toggle("is-following", viewerFollowsProfile);
     followButton.disabled = false;
+    const followerStat = document.getElementById("stat-followers");
+    if (followerStat) followerStat.textContent = String(Number(followerStat.textContent) + (viewerFollowsProfile ? 1 : -1));
   });
 
   const messageButton = document.getElementById("message-profile-btn");
@@ -147,7 +149,10 @@ async function loadProfile() {
       <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
         ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
         <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
-        <span class="ig-grid-item-overlay">${escapeHtml(r.title)}</span>
+        <span class="ig-grid-item-overlay">
+          ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
+          <span class="ig-grid-item-name">${escapeHtml(r.title)}</span>
+        </span>
       </a>`).join("");
   }
 

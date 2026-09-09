@@ -70,7 +70,7 @@
   .ig-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
+    gap: 10px;
     margin-top: 4px;
   }
   .ig-grid-item {
@@ -78,6 +78,7 @@
     display: block;
     aspect-ratio: 1 / 1;
     overflow: hidden;
+    border-radius: 14px;
     background: linear-gradient(145deg, #171b25, #343b4d);
     color: #fff;
     text-decoration: none;
@@ -90,12 +91,27 @@
   }
   .ig-grid-item.has-image .ig-grid-item-fallback { display: none; }
   .ig-grid-item-overlay {
-    position: absolute; inset: 0; z-index: 1; display: flex; align-items: flex-end;
-    padding: 8px; opacity: 0; transition: opacity .2s ease;
-    background: linear-gradient(to top, rgba(4,6,10,.75), transparent 55%);
-    font-size: 11px; font-weight: 700;
+    position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;
+    padding: 10px;
+    background: linear-gradient(to top, rgba(4,6,10,.8), transparent 55%);
   }
-  .ig-grid-item:hover .ig-grid-item-overlay, .ig-grid-item:focus .ig-grid-item-overlay { opacity: 1; }
+  .ig-grid-item-tag {
+    align-self: flex-start;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    background: rgba(255,255,255,.18);
+    backdrop-filter: blur(4px);
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .ig-grid-item-name {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
 
   .profile-rec-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
   .profile-rec-item {

@@ -125,11 +125,14 @@ function renderFeed() {
     <div class="ticket-wrap">
       <a href="request.html#${r.id}" class="ticket${r.spotify_url ? " has-spotify" : ""}" data-id="${r.id}"${r.spotify_url ? ` data-spotify="${escapeHtml(r.spotify_url)}"` : ""}${r.image_url ? ` style="--post-image: url('${escapeHtml(r.image_url)}')"` : ""}>
         ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
-        ${r.image_url ? `<div class="ticket-image"><img src="${r.image_url}" alt=""></div>` : ""}
-        ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-        <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
-        <p class="ticket-desc">${escapeHtml(r.description ?? "")}</p>
-        ${r.spotify_url ? `<div class="ticket-song">&#9834; song attached</div>` : ""}
+        <div class="ticket-image">
+          ${r.image_url ? `<img src="${r.image_url}" alt="">` : `<span class="ticket-image-fallback"></span>`}
+          <div class="ticket-overlay">
+            ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
+            <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
+            ${r.spotify_url ? `<span class="ticket-song">&#9834; song attached</span>` : ""}
+          </div>
+        </div>
         <div class="ticket-footer">
           <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${r.profiles?.username ?? "someone"}</span>
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}

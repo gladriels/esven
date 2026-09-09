@@ -281,6 +281,7 @@ textarea { resize: vertical; min-height: 70px; }
   grid-template-columns: repeat(3, 1fr);
   grid-auto-rows: 8px;
   gap: 10px;
+  align-items: start;
 }
 
 .ticket-wrap {
@@ -1748,4 +1749,60 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
 .push-prompt .btn-ghost { color: #fff; border-color: rgba(255,255,255,.35); }
 @media (max-width: 600px) {
   .push-prompt { flex-direction: column; align-items: stretch; text-align: center; }
+}
+
+/* ---------- Home feed: Pinterest-style masonry cards ----------
+   Scoped to #board (the home feed only) with an ID-prefixed selector so it
+   reliably wins over the many earlier `.ticket*` rules used by other pages
+   (request.html, reel.js) without having to touch those pages' styling. */
+#board.board { gap: 14px; grid-auto-flow: dense; }
+#board .ticket { padding: 0; overflow: hidden; border-radius: 18px; isolation: isolate; }
+#board .ticket-image {
+  position: relative;
+  margin-bottom: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  background: var(--pill);
+}
+#board .ticket-image img { width: 100%; height: auto; aspect-ratio: auto; display: block; }
+#board .ticket:hover .ticket-image img { transform: none; }
+#board .ticket-image-fallback {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: linear-gradient(145deg, #171b25, #343b4d);
+}
+#board .ticket-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: linear-gradient(to top, rgba(4,6,10,.82), transparent 62%);
+}
+#board .ticket-cat {
+  align-self: flex-start;
+  background: rgba(255,255,255,.2);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  margin-bottom: 0;
+}
+#board .ticket-title { color: #fff; font-size: 15px; margin: 0; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
+#board .ticket-song { color: #fff; opacity: .85; font-size: 11px; margin-top: 0; display: block; }
+#board .sponsored-badge { position: absolute; top: 10px; left: 10px; z-index: 2; margin-bottom: 0; }
+#board .ticket-footer {
+  position: relative;
+  z-index: 1;
+  background: var(--card);
+  border-top: none;
+  padding: 9px 14px;
+  margin-top: 0;
+}
+#board .ticket-footer .ticket-author { color: #171717; }
+@media (max-width: 600px) {
+  #board .ticket { border-radius: 14px; }
+  #board .ticket-overlay { padding: 10px; }
+  #board .ticket-footer { padding: 8px 12px; }
 }
