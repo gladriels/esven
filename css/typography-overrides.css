@@ -48,13 +48,13 @@
    here too or it gets silently overridden. */
 @media (max-width: 600px) {
   #board .ticket-footer .mini-avatar {
-    width: 12px !important;
-    height: 12px !important;
-    flex: 0 0 12px !important;
-    margin-right: 3px !important;
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 18px !important;
+    margin-right: 5px !important;
   }
   #board .ticket-footer .ticket-author {
-    font-size: 8.5px !important;
+    font-size: 11.5px !important;
   }
 }
 /* Force feed cards to always be visible — the scroll-fade animation

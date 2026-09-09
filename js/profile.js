@@ -235,10 +235,9 @@ function shuffleArray(list) {
 function profileFeedSourceList() {
   if (profileFeedMode === "shuffle") return shuffleArray(profileRequests);
   if (profileFeedMode === "staffpick") {
-    return profileRequests
-      .filter(r => r.is_staff_pick)
-      .slice()
-      .sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+    const picked = profileRequests.filter(r => r.is_staff_pick).sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+    const rest = profileRequests.filter(r => !r.is_staff_pick);
+    return [...picked, ...rest];
   }
   if (profileFeedMode === "recent") {
     const viewedIds = getRecentlyViewedIds();
@@ -255,7 +254,6 @@ function renderProfileGrid() {
   if (!list.length) {
     const emptyMessages = {
       recent: "You haven't viewed any of these posts yet.",
-      staffpick: "No staff picks here yet.",
     };
     reqContainer.innerHTML = `<p class="empty-state">${emptyMessages[profileFeedMode] ?? "No requests yet."}</p>`;
     return;

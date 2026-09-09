@@ -13,12 +13,12 @@
   <div class="hero-texture"></div>
   <header class="landing-header">
     <div class="landing-logo">Esven</div>
-    <div id="auth-bar"></div>
     <div class="feed-tabs-row" id="feed-tabs">
       <button type="button" class="feed-tab" data-mode="shuffle">Shuffle</button>
       <button type="button" class="feed-tab active" data-mode="staffpick">Staff Picks</button>
       <button type="button" class="feed-tab" data-mode="recent">Recent</button>
     </div>
+    <div id="auth-bar"></div>
   </header>
 
   <div class="hero-content">
@@ -39,11 +39,6 @@
 
   <div class="section-label-row" id="trending-heading" style="display:none;">
     <h2>Trending</h2>
-  </div>
-  <div class="trending-tabs" id="trending-tabs" style="display:none;">
-    <button type="button" class="trending-tab" data-mode="shuffle">Shuffle</button>
-    <button type="button" class="trending-tab" data-mode="staffpick">Staff Picks</button>
-    <button type="button" class="trending-tab active" data-mode="recent">Recent</button>
   </div>
   <div class="trending-row" id="trending-strip"></div>
 
@@ -122,6 +117,7 @@
         </label>
         <input type="file" id="req-image-file" accept="image/*" style="display:none;" />
       </div>
+      <p class="field-hint">Any shape or size works, as long as it's at least 480×480px.</p>
       <img id="req-image-preview" style="display:none;" />
       <div class="field-row">
         <select id="req-audience">

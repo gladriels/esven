@@ -13,11 +13,6 @@ const ICONS = {
   eyeOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${ICON_STROKE}" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3.5l17 17"/><path d="M10.6 5.7c.45-.1.9-.15 1.4-.15 6 0 9.5 6.5 9.5 6.5a15.4 15.4 0 0 1-3.3 4.1M6.5 6.9A15.6 15.6 0 0 0 2.5 12s3.5 6.5 9.5 6.5c1.3 0 2.5-.3 3.6-.85"/><path d="M9.9 10.1a2.8 2.8 0 0 0 3.9 3.9"/></svg>`,
 };
 
-// A compact monogram + wordmark, used wherever the plain text logo used to
-// sit — same markup on every page so it always renders identically.
-const LOGO_MARK_SVG = `<svg class="logo-mark" viewBox="0 0 32 32" width="24" height="24" fill="none"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.1"/><path d="M10.5 11h11M10.5 16h7.5M10.5 21h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
-const LOGO_INNER_HTML = `${LOGO_MARK_SVG}<span class="logo-word">Esven</span>`;
-
 // Keeps a `--header-h` custom property on <html> in sync with the real,
 // rendered height of the page's fixed/sticky header so content never
 // starts underneath it (heights change a lot between logged-in/out and
@@ -36,15 +31,4 @@ function syncHeaderHeightVar() {
   }
 }
 
-function renderLogoMarks() {
-  document.querySelectorAll(".logo, .landing-logo").forEach(el => {
-    if (el.dataset.logoRendered) return;
-    el.dataset.logoRendered = "1";
-    el.innerHTML = LOGO_INNER_HTML;
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  renderLogoMarks();
-  syncHeaderHeightVar();
-});
+document.addEventListener("DOMContentLoaded", syncHeaderHeightVar);

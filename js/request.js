@@ -214,15 +214,26 @@ async function uploadRecImage(user, file) {
   return data.publicUrl;
 }
 
-let croppedRecommendationImage = null;
+// No forced crop/aspect-ratio — just a minimum size so tiny images don't
+// end up in the feed. Matches the request-post upload behavior.
+const MIN_IMAGE_WIDTH = 480;
+const MIN_IMAGE_HEIGHT = 480;
 
-function openImageCropper(file, onCrop) {
-  const source = URL.createObjectURL(file), modal = document.createElement("div");
-  modal.className = "image-crop-modal";
-  modal.innerHTML = `<div class="image-crop-dialog"><h2>Crop your photo</h2><div class="image-crop-frame"><img src="${source}" alt="Crop preview"></div><div class="image-crop-actions"><button type="button" class="btn btn-ghost" data-crop-cancel>Cancel</button><button type="button" class="btn" data-crop-save>Use photo</button></div></div>`;
-  document.body.appendChild(modal);
-  const image = modal.querySelector("img");
-  image.onload = () => { const ratio = 16 / 10; let width = image.naturalWidth, height = image.naturalHeight; if (width / height > ratio) width = height * ratio; else height = width / ratio; const x = (image.naturalWidth - width) / 2, y = (image.naturalHeight - height) / 2; modal.querySelector("[data-crop-save]").onclick = () => { const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 800; canvas.getContext("2d").drawImage(image, x, y, width, height, 0, 0, canvas.width, canvas.height); canvas.toBlob(blob => { onCrop(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" })); URL.revokeObjectURL(source); modal.remove(); }, "image/jpeg", .9); }; modal.querySelector("[data-crop-cancel]").onclick = () => { URL.revokeObjectURL(source); modal.remove(); }; };
+function checkImageMinSize(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (img.naturalWidth < MIN_IMAGE_WIDTH || img.naturalHeight < MIN_IMAGE_HEIGHT) {
+        reject(new Error(`Photo is too small — it needs to be at least ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT}px (this one is ${img.naturalWidth}×${img.naturalHeight}).`));
+        return;
+      }
+      resolve();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that image. Try a different file.")); };
+    img.src = url;
+  });
 }
 
 function initRecImagePreview() {
@@ -230,9 +241,20 @@ function initRecImagePreview() {
   const preview = document.getElementById("rec-image-preview");
   const labelText = document.getElementById("rec-upload-label-text");
   if (!fileInput) return;
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0]; if (!file) return;
-    openImageCropper(file, cropped => { croppedRecommendationImage = cropped; preview.src = URL.createObjectURL(cropped); preview.style.display = "block"; labelText.textContent = "Photo cropped"; });
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    try {
+      await checkImageMinSize(file);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+      labelText.textContent = "Photo selected";
+    } catch (err) {
+      alert(err.message);
+      fileInput.value = "";
+      preview.style.display = "none";
+      labelText.textContent = "+ Add a photo";
+    }
   });
 }
 
@@ -250,7 +272,7 @@ async function initRecForm() {
     e.preventDefault();
     const note = document.getElementById("rec-note").value.trim();
     const link = applyAffiliateTag(document.getElementById("rec-link").value.trim());
-    const file = croppedRecommendationImage || document.getElementById("rec-image-file").files[0];
+    const file = document.getElementById("rec-image-file").files[0];
 
     let image_url = "";
     try {

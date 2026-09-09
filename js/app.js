@@ -3,8 +3,7 @@ let allRequests = [];
 let currentUserId = null;
 let currentUserIsAdmin = false;
 let likesByRequest = new Map(); // request_id -> Set of user_ids who liked it
-let trendingMode = "recent"; // "recent" | "shuffle" | "staffpick"
-let feedMode = "staffpick"; // "shuffle" | "staffpick" | "recent" — the feed's own view, separate from trending's
+let feedMode = "staffpick"; // "shuffle" | "staffpick" | "recent" — shared by the feed and the trending strip
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -110,30 +109,33 @@ function shuffleArray(list) {
 
 function trendingSourceList() {
   const withImages = allRequests.filter(r => r.image_url);
-  if (trendingMode === "shuffle") return shuffleArray(withImages).slice(0, 10);
-  if (trendingMode === "staffpick") return withImages.filter(r => r.is_staff_pick).slice(0, 10);
-  return withImages.slice(0, 10); // "recent" — query already orders by created_at desc
+  if (feedMode === "shuffle") return shuffleArray(withImages).slice(0, 10);
+  if (feedMode === "staffpick") {
+    const picked = withImages.filter(r => r.is_staff_pick).sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+    const rest = withImages.filter(r => !r.is_staff_pick);
+    return [...picked, ...rest].slice(0, 10);
+  }
+  if (feedMode === "recent") {
+    const viewedIds = getRecentlyViewedIds();
+    const byId = new Map(withImages.map(r => [r.id, r]));
+    return viewedIds.map(id => byId.get(id)).filter(Boolean).slice(0, 10);
+  }
+  return withImages.slice(0, 10);
 }
 
 function renderTrending() {
   const strip = document.getElementById("trending-strip");
   const heading = document.getElementById("trending-heading");
-  const tabs = document.getElementById("trending-tabs");
   if (!strip) return;
   const withImages = allRequests.filter(r => r.image_url);
 
   if (!withImages.length) {
     strip.style.display = "none";
     heading.style.display = "none";
-    if (tabs) tabs.style.display = "none";
     return;
   }
   strip.style.display = "flex";
   heading.style.display = "flex";
-  if (tabs) {
-    tabs.style.display = "flex";
-    tabs.querySelectorAll(".trending-tab").forEach(btn => btn.classList.toggle("active", btn.dataset.mode === trendingMode));
-  }
 
   const items = trendingSourceList();
 
@@ -142,7 +144,7 @@ function renderTrending() {
     return;
   }
 
-  const showReorder = trendingMode === "staffpick" && currentUserIsAdmin;
+  const showReorder = feedMode === "staffpick" && currentUserIsAdmin;
 
   strip.innerHTML = items.map((r, i) => {
     const likeCount = likesByRequest.get(r.id)?.size ?? 0;
@@ -185,10 +187,12 @@ function renderTrending() {
 function feedSourceList() {
   if (feedMode === "shuffle") return shuffleArray(allRequests);
   if (feedMode === "staffpick") {
-    return allRequests
-      .filter(r => r.is_staff_pick)
-      .slice()
-      .sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+    // Staff picks lead, in the admin's chosen order; everything else
+    // follows after so the feed is never empty and admins can still find
+    // (and star) posts that aren't picked yet.
+    const picked = allRequests.filter(r => r.is_staff_pick).sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+    const rest = allRequests.filter(r => !r.is_staff_pick);
+    return [...picked, ...rest];
   }
   if (feedMode === "recent") {
     const viewedIds = getRecentlyViewedIds();
@@ -207,6 +211,7 @@ function initFeedTabs() {
       feedMode = btn.dataset.mode;
       document.querySelectorAll("#feed-tabs .feed-tab").forEach(b => b.classList.toggle("active", b.dataset.mode === feedMode));
       renderFeed();
+      renderTrending();
     });
   });
 }
@@ -234,17 +239,6 @@ async function swapStaffPickRank(idA, idB) {
     renderStaffPickViews();
     alert("Couldn't reorder staff picks.");
   }
-}
-
-function initTrendingTabs() {
-  const tabs = document.getElementById("trending-tabs");
-  if (!tabs) return;
-  tabs.addEventListener("click", (e) => {
-    const btn = e.target.closest(".trending-tab");
-    if (!btn) return;
-    trendingMode = btn.dataset.mode;
-    renderTrending();
-  });
 }
 
 async function toggleLike(requestId, btn) {
@@ -326,7 +320,6 @@ function renderFeed() {
   if (!filtered.length) {
     const emptyMessages = {
       recent: "You haven't viewed any posts yet — browse Shuffle or Staff Picks to get started.",
-      staffpick: "No staff picks yet.",
     };
     board.innerHTML = `<p class="empty-state">${emptyMessages[feedMode] ?? "No open requests here yet. Be the first to post one."}</p>`;
     return;
@@ -425,39 +418,47 @@ async function uploadRequestImage(user, file) {
   return data.publicUrl;
 }
 
-let croppedRequestImage = null;
+// No forced crop/aspect-ratio any more — people post whatever shape photo
+// they want. The only gate is a minimum size, so tiny/blurry images don't
+// end up in the feed.
+const MIN_IMAGE_WIDTH = 480;
+const MIN_IMAGE_HEIGHT = 480;
 
-function openImageCropper(file, onCrop) {
-  const source = URL.createObjectURL(file);
-  const modal = document.createElement("div");
-  modal.className = "image-crop-modal";
-  modal.innerHTML = `<div class="image-crop-dialog"><h2>Crop your photo</h2><div class="image-crop-frame"><img src="${source}" alt="Crop preview"></div><div class="image-crop-actions"><button type="button" class="btn btn-ghost" data-crop-cancel>Cancel</button><button type="button" class="btn" data-crop-save>Use photo</button></div></div>`;
-  document.body.appendChild(modal);
-  const image = modal.querySelector("img");
-  image.onload = () => {
-    const frame = modal.querySelector(".image-crop-frame");
-    const crop = { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight };
-    const ratio = 16 / 10;
-    if (crop.width / crop.height > ratio) crop.width = crop.height * ratio;
-    else crop.height = crop.width / ratio;
-    crop.x = (image.naturalWidth - crop.width) / 2;
-    crop.y = (image.naturalHeight - crop.height) / 2;
-    modal.querySelector("[data-crop-save]").onclick = () => {
-      const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 800;
-      canvas.getContext("2d").drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => { onCrop(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" })); URL.revokeObjectURL(source); modal.remove(); }, "image/jpeg", .9);
+function checkImageMinSize(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (img.naturalWidth < MIN_IMAGE_WIDTH || img.naturalHeight < MIN_IMAGE_HEIGHT) {
+        reject(new Error(`Photo is too small — it needs to be at least ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT}px (this one is ${img.naturalWidth}×${img.naturalHeight}).`));
+        return;
+      }
+      resolve();
     };
-    modal.querySelector("[data-crop-cancel]").onclick = () => { URL.revokeObjectURL(source); modal.remove(); };
-  };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that image. Try a different file.")); };
+    img.src = url;
+  });
 }
 
 function initImagePreview() {
   const fileInput = document.getElementById("req-image-file");
   const preview = document.getElementById("req-image-preview");
   const labelText = document.getElementById("upload-label-text");
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0]; if (!file) return;
-    openImageCropper(file, cropped => { croppedRequestImage = cropped; preview.src = URL.createObjectURL(cropped); preview.style.display = "block"; labelText.textContent = "Photo cropped"; });
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    try {
+      await checkImageMinSize(file);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+      labelText.textContent = "Photo selected";
+    } catch (err) {
+      alert(err.message);
+      fileInput.value = "";
+      preview.style.display = "none";
+      labelText.textContent = "+ Add a photo";
+    }
   });
 }
 
@@ -492,7 +493,7 @@ async function initNewRequestPanel() {
     const category = document.getElementById("req-category").value;
     const audience = document.getElementById("req-audience").value;
     const spotify_url = document.getElementById("req-spotify").value.trim();
-    const imageFile = croppedRequestImage || document.getElementById("req-image-file").files[0];
+    const imageFile = document.getElementById("req-image-file").files[0];
 
     let image_url = "";
     try {
@@ -522,7 +523,6 @@ document.addEventListener("DOMContentLoaded", () => {
   applyCategoryFromUrl();
   loadFeed();
   initCategoryRow();
-  initTrendingTabs();
   initFeedTabs();
   initNewRequestPanel();
   initImagePreview();

@@ -266,10 +266,11 @@ textarea { resize: vertical; min-height: 70px; }
 }
 .upload-label:hover { border-color: var(--accent); color: var(--accent); }
 
-#req-image-preview {
+#req-image-preview, #rec-image-preview {
   width: 100%;
-  max-height: 160px;
-  object-fit: cover;
+  max-height: 220px;
+  object-fit: contain;
+  background: var(--pill);
   border-radius: 8px;
   margin-bottom: 10px;
 }
@@ -1846,25 +1847,31 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
 .messages-badge-count[hidden] { display: none; }
 
 @media (max-width: 600px) {
-  .logo-word { font-size: 15px; }
-  .logo-mark { width: 20px; height: 20px; }
-  #auth-bar { flex-wrap: nowrap !important; justify-content: flex-end; gap: 8px; }
-  .auth-entry-actions { flex-wrap: nowrap; gap: 6px; }
+  /* Logo, tabs, and icons all share one row now — everything has to
+     shrink to actually fit a phone-width line. */
+  .landing-header, header.site-header { gap: 6px; padding-inline: 10px; }
+  .logo, .landing-logo { font-size: 13px; }
+  .feed-tabs-row { gap: 4px; }
+  .feed-tab { padding: 4px 7px; font-size: 9px; }
+  #auth-bar { flex-wrap: nowrap !important; justify-content: flex-end; gap: 5px; }
+  .auth-entry-actions { flex-wrap: nowrap; gap: 5px; }
+  .auth-entry-actions .btn, .auth-entry-actions .btn-ghost { padding: 7px 10px; font-size: 11px; }
 
   .icon-btn .btn-label,
   .avatar-btn .auth-user { display: none; }
 
   .icon-btn, .avatar-btn {
-    width: 34px;
-    height: 34px;
-    min-width: 34px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
     padding: 0 !important;
     justify-content: center;
     border-radius: 50%;
     flex: 0 0 auto;
     gap: 0;
   }
-  .avatar-thumb, .avatar-thumb-empty { width: 30px; height: 30px; }
+  .icon-btn svg { width: 13px; height: 13px; }
+  .avatar-thumb, .avatar-thumb-empty { width: 26px; height: 26px; }
   .messages-badge-count { top: -3px; right: -3px; }
 }
 
@@ -1970,14 +1977,14 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   #board .ticket-footer {
     background: rgba(255,255,255,.97);
     border-top: none;
-    padding: 5px 8px;
-    font-size: 8.5px;
+    padding: 6px 9px;
+    font-size: 11.5px;
     gap: 4px;
     color: #171717;
   }
   #board .ticket-footer .ticket-author { color: #171717; }
-  #board .ticket-footer .mini-avatar { width: 12px; height: 12px; flex: 0 0 12px; margin-right: 3px; }
-  #board .ticket-budget { font-size: 8.5px; color: #a45d20; }
+  #board .ticket-footer .mini-avatar { width: 18px; height: 18px; flex: 0 0 18px; margin-right: 5px; }
+  #board .ticket-budget { font-size: 11px; color: #a45d20; }
   #board .ticket-title {
     font-size: 12.5px;
     display: -webkit-box;
@@ -2088,15 +2095,21 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   }
 }
 
-/* ---------- Logo: monogram mark + wordmark, same on every page ---------- */
-.logo, .landing-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-}
-.logo-mark { color: var(--accent); flex: 0 0 auto; }
-.logo-word { font-family: 'Cormorant Garamond', serif; letter-spacing: .015em; }
+/* Feed tabs sit inline with the logo and icons, same row, same level. */
+.feed-tabs-row { flex-basis: auto; order: initial; margin-top: 0; width: auto; }
 
-/* Feed tabs sit right under the icon row with minimal gap. */
-.feed-tabs-row { margin-top: 2px; }
+/* Re-declared at the true end of the file: an earlier .feed-tab rule
+   (no media query) sits after the first mobile-shrink attempt above and
+   was winning at every width, undoing it. This wins for real. */
+@media (max-width: 600px) {
+  .feed-tab { padding: 3px 5px !important; font-size: 8.5px !important; }
+  .feed-tabs-row { gap: 2px !important; }
+  .logo, .landing-logo { font-size: 12px !important; }
+  .landing-header, header.site-header { gap: 3px !important; padding-inline: 6px !important; }
+  .auth-entry-actions { gap: 4px !important; }
+  .auth-entry-actions .btn, .auth-entry-actions .btn-ghost { padding: 5px 8px !important; font-size: 10px !important; }
+  #auth-bar { gap: 4px !important; }
+  .icon-btn, .avatar-btn { width: 26px !important; height: 26px !important; min-width: 26px !important; }
+  .avatar-thumb, .avatar-thumb-empty { width: 22px !important; height: 22px !important; }
+  .icon-btn svg { width: 11px !important; height: 11px !important; }
+}
