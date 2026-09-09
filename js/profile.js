@@ -72,26 +72,33 @@ async function loadProfile() {
   const songEmbed = profileSpotifyEmbedUrl(profile.profile_spotify_url);
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
+  const postCount = (requests?.length ?? 0) + (recs?.length ?? 0);
+  const isOwnProfile = viewer && viewer.id === profile.id;
+
   heroContainer.innerHTML = `
-    <div class="profile-hero">
+    <div class="ig-header">
       ${profile.avatar_url
         ? `<img src="${profile.avatar_url}" class="profile-avatar-big">`
         : `<span class="profile-avatar-big profile-avatar-big-empty"></span>`}
-      <div>
-        <h1 class="profile-name">@${escapeHtml(profile.username)}</h1>
-        <div class="profile-stats-row">
-          <span><strong>${requests?.length ?? 0}</strong> requests</span>
-          <span><strong>${recs?.length ?? 0}</strong> recommendations</span>
-          <span><strong>${followerCount ?? 0}</strong> followers</span>
-          <span><strong>${followingCount ?? 0}</strong> following</span>
-          <span>Joined ${joined}</span>
+      <div class="ig-info-col">
+        <div class="ig-username-row">
+          <h1 class="profile-name">@${escapeHtml(profile.username)}</h1>
+          <div class="ig-actions">
+            ${viewer && !isOwnProfile ? `<button class="btn profile-follow-btn" id="follow-profile-btn">${viewerFollowsProfile ? "Following" : "Follow"}</button>` : ""}
+            ${viewer && !isOwnProfile ? `<button class="btn btn-ghost" id="message-profile-btn">Message</button>` : ""}
+            ${viewerIsAdmin && !isOwnProfile ? `<button class="btn btn-danger" id="admin-remove-user">Remove account</button>` : ""}
+          </div>
         </div>
+        <div class="ig-stats-row">
+          <div class="ig-stat"><strong>${postCount}</strong><span>Posts</span></div>
+          <div class="ig-stat"><strong>${followerCount ?? 0}</strong><span>Followers</span></div>
+          <div class="ig-stat"><strong>${followingCount ?? 0}</strong><span>Following</span></div>
+        </div>
+        ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
+        <p class="profile-bio">Joined ${joined}</p>
+        ${songEmbed ? `<iframe class="spotify-embed" src="${songEmbed}" width="100%" height="80" frameborder="0" allow="encrypted-media"></iframe>` : ""}
       </div>
     </div>
-    ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
-    ${viewer && viewer.id !== profile.id ? `<button class="btn profile-follow-btn" id="follow-profile-btn">${viewerFollowsProfile ? "Following" : "Follow"}</button>` : ""}
-    ${viewerIsAdmin && viewer.id !== profile.id ? `<button class="btn btn-danger" id="admin-remove-user">Remove account</button>` : ""}
-    ${songEmbed ? `<iframe class="spotify-embed" src="${songEmbed}" width="100%" height="80" frameborder="0" allow="encrypted-media"></iframe>` : ""}
   `;
 
   const followButton = document.getElementById("follow-profile-btn");
@@ -106,6 +113,14 @@ async function loadProfile() {
     followButton.textContent = viewerFollowsProfile ? "Following" : "Follow";
     followButton.classList.toggle("is-following", viewerFollowsProfile);
     followButton.disabled = false;
+  });
+
+  const messageButton = document.getElementById("message-profile-btn");
+  if (messageButton) messageButton.addEventListener("click", async () => {
+    messageButton.disabled = true;
+    const { data: conversationId, error } = await supabase.rpc("get_or_create_conversation", { other_user_id: profile.id });
+    if (error) { alert("Couldn't start conversation: " + error.message); messageButton.disabled = false; return; }
+    window.location.href = `messages.html#${conversationId}`;
   });
 
   const removeButton = document.getElementById("admin-remove-user");
@@ -128,12 +143,11 @@ async function loadProfile() {
   } else if (!requests || !requests.length) {
     reqContainer.innerHTML = `<p class="empty-state">No requests yet.</p>`;
   } else {
-    reqContainer.classList.add("profile-post-grid");
     reqContainer.innerHTML = requests.map(r => `
-      <a href="request.html#${r.id}" class="profile-post${r.image_url ? " has-image" : ""}">
+      <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
         ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
-        <span class="profile-post-fallback">${escapeHtml(r.title)}</span>
-        <span class="profile-post-overlay"><strong>${escapeHtml(r.title)}</strong><small>${r.category || "Request"}</small></span>
+        <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
+        <span class="ig-grid-item-overlay">${escapeHtml(r.title)}</span>
       </a>`).join("");
   }
 
@@ -151,4 +165,13 @@ async function loadProfile() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", loadProfile);
+function wireProfileTabs() {
+  document.querySelectorAll("#profile-tabs .ig-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll("#profile-tabs .ig-tab").forEach((t) => t.classList.toggle("active", t === tab));
+      document.querySelectorAll("[data-panel]").forEach((panel) => { panel.hidden = panel.dataset.panel !== tab.dataset.tab; });
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => { wireProfileTabs(); loadProfile(); });

@@ -6,44 +6,98 @@
 <title>Profile — Esven</title>
 <link rel="stylesheet" href="css/style.css" />
 <style>
-  .profile-hero {
+  .ig-header {
     display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 28px 0;
+    align-items: flex-start;
+    gap: clamp(20px, 5vw, 48px);
+    padding: 32px 0 20px;
     flex-wrap: wrap;
   }
   .profile-avatar-big {
-    width: 84px;
-    height: 84px;
+    width: 96px;
+    height: 96px;
     border-radius: 50%;
     object-fit: cover;
     background: var(--pill);
     flex-shrink: 0;
+    border: 2px solid var(--line);
   }
   .profile-avatar-big-empty { background: var(--accent); }
+  .ig-info-col { flex: 1; min-width: 220px; }
+  .ig-username-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
   .profile-name {
     font-family: var(--display);
     font-weight: 800;
-    font-size: 24px;
+    font-size: 22px;
     letter-spacing: -0.02em;
-    margin: 0 0 6px;
+    margin: 0;
   }
-  .profile-stats-row {
+  .ig-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ig-stats-row {
     display: flex;
-    gap: 22px;
+    gap: clamp(18px, 4vw, 40px);
+    margin-bottom: 16px;
+  }
+  .ig-stat { display: flex; flex-direction: column; font-size: 14px; }
+  .ig-stat strong { font-size: 17px; font-weight: 800; }
+  .ig-stat span { color: var(--ink-soft); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .profile-bio { font-size: 14px; color: var(--ink-soft); margin: 0 0 4px; max-width: 480px; white-space: pre-wrap; }
+
+  .ig-tabs {
+    display: flex;
+    gap: 4px;
+    border-top: 1px solid var(--line);
+    margin-top: 12px;
+  }
+  .ig-tab {
+    flex: 1;
+    max-width: 220px;
+    background: none;
+    border: none;
+    border-top: 2px solid transparent;
+    margin-top: -1px;
+    padding: 14px 6px;
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
     color: var(--ink-soft);
+    cursor: pointer;
   }
-  .profile-stats-row strong { color: var(--ink); }
-  .profile-section-title {
-    font-family: var(--display);
-    font-weight: 700;
-    font-size: 16px;
-    margin: 32px 0 14px;
+  .ig-tab.active { color: var(--ink); border-top-color: var(--ink); font-weight: 700; }
+
+  [data-panel][hidden] { display: none; }
+  .ig-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    margin-top: 4px;
   }
-  .profile-rec-list { display: flex; flex-direction: column; gap: 10px; }
+  .ig-grid-item {
+    position: relative;
+    display: block;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: linear-gradient(145deg, #171b25, #343b4d);
+    color: #fff;
+    text-decoration: none;
+  }
+  .ig-grid-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ig-grid-item-fallback {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    padding: 10px; text-align: center; font-family: var(--display); font-weight: 700;
+    font-size: 13px; line-height: 1.2;
+  }
+  .ig-grid-item.has-image .ig-grid-item-fallback { display: none; }
+  .ig-grid-item-overlay {
+    position: absolute; inset: 0; z-index: 1; display: flex; align-items: flex-end;
+    padding: 8px; opacity: 0; transition: opacity .2s ease;
+    background: linear-gradient(to top, rgba(4,6,10,.75), transparent 55%);
+    font-size: 11px; font-weight: 700;
+  }
+  .ig-grid-item:hover .ig-grid-item-overlay, .ig-grid-item:focus .ig-grid-item-overlay { opacity: 1; }
+
+  .profile-rec-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
   .profile-rec-item {
     display: block;
     background: var(--card);
@@ -56,7 +110,12 @@
   .profile-rec-item:hover { border-color: var(--ink); }
   .profile-rec-note { font-size: 13px; margin: 0 0 6px; }
   .profile-rec-for { font-family: var(--mono); font-size: 11px; color: var(--accent); }
-  .profile-bio { font-size: 14px; color: var(--ink-soft); margin: -10px 0 16px; max-width: 480px; }
+
+  @media (max-width: 600px) {
+    .ig-header { gap: 16px; padding: 20px 0 12px; }
+    .profile-avatar-big { width: 72px; height: 72px; }
+    .ig-stats-row { gap: 18px; }
+  }
 </style>
 </head>
 <body class="profile-page">
@@ -75,13 +134,16 @@
     <p class="empty-state">Loading...</p>
   </div>
 
-  <h2 class="profile-section-title">Requests</h2>
-  <div id="profile-requests" class="board">
+  <div class="ig-tabs" id="profile-tabs">
+    <button type="button" class="ig-tab active" data-tab="requests">Requests</button>
+    <button type="button" class="ig-tab" data-tab="recs">Recommendations</button>
+  </div>
+
+  <div id="profile-requests" class="ig-grid" data-panel="requests">
     <p class="empty-state">Loading...</p>
   </div>
 
-  <h2 class="profile-section-title">Recommendations</h2>
-  <div id="profile-recs" class="profile-rec-list">
+  <div id="profile-recs" class="profile-rec-list" data-panel="recs" hidden>
     <p class="empty-state">Loading...</p>
   </div>
 </main>
@@ -89,6 +151,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/push-config.js"></script>
+<script src="js/push.js"></script>
+<script src="js/messages-badge.js"></script>
 <script src="js/profile.js"></script>
 <script src="js/masonry.js"></script>
 </body>
