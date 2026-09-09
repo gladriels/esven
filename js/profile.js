@@ -1,4 +1,6 @@
 const profileUsername = decodeURIComponent(window.location.hash.slice(1));
+let profileRequests = [];
+let profileFeedMode = "shuffle"; // "shuffle" | "staffpick" | "recent"
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -32,7 +34,7 @@ async function loadProfile() {
     .single();
 
   if (profileError || !profile) {
-    heroContainer.innerHTML = `<p class="empty-state">Couldn't find @${escapeHtml(profileUsername)}${profileError ? `: ${escapeHtml(profileError.message)}` : ""}</p>`;
+    heroContainer.innerHTML = `<p class="empty-state">Couldn't find ${escapeHtml(profileUsername)}${profileError ? `: ${escapeHtml(profileError.message)}` : ""}</p>`;
     reqContainer.innerHTML = "";
     recContainer.innerHTML = "";
     return;
@@ -40,7 +42,7 @@ async function loadProfile() {
 
   const reqResult = await supabase
     .from("requests")
-    .select("id, title, description, budget, category, image_url, spotify_url, created_at")
+    .select("id, title, description, budget, category, image_url, spotify_url, created_at, is_staff_pick, staff_pick_rank")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false });
 
@@ -82,7 +84,7 @@ async function loadProfile() {
         : `<span class="profile-avatar-big profile-avatar-big-empty"></span>`}
       <div class="ig-info-col">
         <div class="ig-username-row">
-          <h1 class="profile-name">@${escapeHtml(profile.username)}</h1>
+          <h1 class="profile-name">${escapeHtml(profile.username)}</h1>
           <div class="ig-actions">
             ${viewer && !isOwnProfile ? `<button class="btn profile-follow-btn" id="follow-profile-btn">${viewerFollowsProfile ? "Following" : "Follow"}</button>` : ""}
             ${viewer && !isOwnProfile ? `<button class="btn btn-ghost" id="message-profile-btn">Message</button>` : ""}
@@ -127,7 +129,7 @@ async function loadProfile() {
 
   const removeButton = document.getElementById("admin-remove-user");
   if (removeButton) removeButton.addEventListener("click", async () => {
-    if (!confirm(`Remove @${profile.username} and their content? This cannot be undone.`)) return;
+    if (!confirm(`Remove ${profile.username} and their content? This cannot be undone.`)) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) { alert("Your session expired. Sign in again."); return; }
     const response = await fetch("/api/admin-delete-user", {
@@ -142,18 +144,9 @@ async function loadProfile() {
 
   if (reqResult.error) {
     reqContainer.innerHTML = `<p class="empty-state">Couldn't load requests: ${escapeHtml(reqResult.error.message)}</p>`;
-  } else if (!requests || !requests.length) {
-    reqContainer.innerHTML = `<p class="empty-state">No requests yet.</p>`;
   } else {
-    reqContainer.innerHTML = requests.map(r => `
-      <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
-        ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
-        <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
-        <span class="ig-grid-item-overlay">
-          ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
-          <span class="ig-grid-item-name">${escapeHtml(r.title)}</span>
-        </span>
-      </a>`).join("");
+    profileRequests = requests ?? [];
+    renderProfileGrid();
   }
 
   if (recResult.error) {
@@ -170,6 +163,67 @@ async function loadProfile() {
   }
 }
 
+function shuffleArray(list) {
+  const arr = list.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function profileFeedSourceList() {
+  if (profileFeedMode === "shuffle") return shuffleArray(profileRequests);
+  if (profileFeedMode === "staffpick") {
+    return profileRequests
+      .filter(r => r.is_staff_pick)
+      .slice()
+      .sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+  }
+  if (profileFeedMode === "recent") {
+    const viewedIds = getRecentlyViewedIds();
+    const byId = new Map(profileRequests.map(r => [r.id, r]));
+    return viewedIds.map(id => byId.get(id)).filter(Boolean);
+  }
+  return profileRequests;
+}
+
+function renderProfileGrid() {
+  const reqContainer = document.getElementById("profile-requests");
+  const list = profileFeedSourceList();
+
+  if (!list.length) {
+    const emptyMessages = {
+      recent: "You haven't viewed any of these posts yet.",
+      staffpick: "No staff picks here yet.",
+    };
+    reqContainer.innerHTML = `<p class="empty-state">${emptyMessages[profileFeedMode] ?? "No requests yet."}</p>`;
+    return;
+  }
+
+  reqContainer.innerHTML = list.map(r => `
+    <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
+      ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
+      <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
+      <span class="ig-grid-item-overlay">
+        ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
+        <span class="ig-grid-item-name">${escapeHtml(r.title)}</span>
+      </span>
+    </a>`).join("");
+}
+
+function wireFeedTabs() {
+  const row = document.getElementById("feed-tabs");
+  if (!row) return;
+  row.addEventListener("click", (e) => {
+    const btn = e.target.closest(".feed-tab");
+    if (!btn) return;
+    profileFeedMode = btn.dataset.mode;
+    row.querySelectorAll(".feed-tab").forEach(b => b.classList.toggle("active", b.dataset.mode === profileFeedMode));
+    renderProfileGrid();
+  });
+}
+
 function wireProfileTabs() {
   document.querySelectorAll("#profile-tabs .ig-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -179,4 +233,4 @@ function wireProfileTabs() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => { wireProfileTabs(); loadProfile(); });
+document.addEventListener("DOMContentLoaded", () => { wireProfileTabs(); wireFeedTabs(); loadProfile(); });

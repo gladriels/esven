@@ -1,12 +1,15 @@
-// Finds "@username" text already on the page (in feed cards, recommendation
+// Finds the username text already on the page (in feed cards, recommendation
 // cards, the solved grid, etc.) and turns it into a link to that person's
 // profile page — without needing to touch app.js / request.js / landing.js
 // directly. Runs repeatedly as content loads in, since most of it renders
 // asynchronously after a database fetch.
+//
+// These elements render nothing but the bare username (no "@" prefix, no
+// other text), so the element's whole text content is the username.
 
 function usernameFromText(text) {
-  const match = text.match(/@([a-zA-Z0-9_.]+)/);
-  return match ? match[1] : null;
+  const trimmed = text.trim();
+  return /^[a-zA-Z0-9_.]+$/.test(trimmed) ? trimmed : null;
 }
 
 function linkifyUsernamesIn(root) {

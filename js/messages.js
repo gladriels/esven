@@ -43,7 +43,7 @@ async function loadConversations() {
       <a href="#${c.id}" class="messages-list-item${c.id === activeConversationId ? " active" : ""}" data-conversation="${c.id}">
         ${profile?.avatar_url ? `<img src="${profile.avatar_url}" class="messages-list-avatar">` : `<span class="messages-list-avatar messages-list-avatar-empty"></span>`}
         <div class="messages-list-meta">
-          <div class="messages-list-name"><span>@${escapeHtml(profile?.username ?? "unknown")}</span>${unreadCount ? `<span class="messages-unread-dot"></span>` : ""}</div>
+          <div class="messages-list-name"><span>${escapeHtml(profile?.username ?? "unknown")}</span>${unreadCount ? `<span class="messages-unread-dot"></span>` : ""}</div>
           <div class="messages-list-preview">${escapeHtml(c.last_message_preview ?? "Say hello")}</div>
         </div>
       </a>`;
@@ -77,10 +77,10 @@ async function openConversation(conversationId) {
   }
 
   threadEl.innerHTML = `
-    <div class="messages-thread-header"><a href="#" class="back-to-list" id="back-to-list">&larr;</a> @${escapeHtml(otherProfile?.username ?? "conversation")}</div>
+    <div class="messages-thread-header"><a href="#" class="back-to-list" id="back-to-list">&larr;</a> ${escapeHtml(otherProfile?.username ?? "conversation")}</div>
     <div class="messages-thread-body" id="messages-thread-body"><p class="empty-state">Loading...</p></div>
     <form class="messages-thread-compose" id="messages-compose-form">
-      <input type="text" id="messages-compose-input" placeholder="Message @${escapeHtml(otherProfile?.username ?? "")}" autocomplete="off" required>
+      <input type="text" id="messages-compose-input" placeholder="Message ${escapeHtml(otherProfile?.username ?? "")}" autocomplete="off" required>
       <button type="submit" class="btn">Send</button>
     </form>`;
 

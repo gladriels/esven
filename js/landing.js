@@ -44,7 +44,7 @@ async function loadSolved() {
         ? `<img src="${r.image_url}" alt="" class="solved-thumb">`
         : `<div class="solved-thumb solved-thumb-empty"></div>`}
       <p class="solved-title">${escapeHtml(r.title)}</p>
-      <p class="solved-sub">@${r.profiles?.username ?? "someone"}</p>
+      <p class="solved-sub">${r.profiles?.username ?? "someone"}</p>
     </a>
   `).join("");
 }

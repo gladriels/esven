@@ -295,7 +295,7 @@ textarea { resize: vertical; min-height: 70px; }
 .delete-btn {
   position: absolute;
   top: 10px;
-  right: 10px;
+  left: 10px;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -312,6 +312,7 @@ textarea { resize: vertical; min-height: 70px; }
   transition: background 0.15s ease;
 }
 .delete-btn:hover { background: #C93B3B; }
+.ticket-wrap:has(.sponsored-badge) .delete-btn { top: 44px; }
 
 .ticket {
   background: var(--card);
@@ -1956,15 +1957,126 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
 .trending-tab:hover { color: #fff; border-color: rgba(255,255,255,.32); }
 .trending-tab.active { background: #fff; color: #111; border-color: #fff; }
 
-/* Denser post chrome + smaller identity row on mobile feed cards. */
+/* Denser post chrome + smaller identity row on mobile feed cards. The
+   footer (avatar/name/price) drops out of flow and overlays the bottom of
+   the image instead of sitting in its own white bar — the card's height
+   becomes just the image's height, so the image gets all the space. */
 @media (max-width: 600px) {
   .board { gap: 6px; }
-  #board .ticket-footer { padding: 6px 9px; font-size: 9.5px; gap: 6px; }
-  #board .ticket-footer .mini-avatar { width: 15px; height: 15px; margin-right: 4px; }
-  #board .ticket-budget { font-size: 9.5px; }
-  #board .ticket-overlay { gap: 4px; }
+  #board .ticket { position: relative; }
+  #board .ticket-footer {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 2;
+    background: linear-gradient(to top, rgba(4,6,10,.88), rgba(4,6,10,.25) 75%, transparent);
+    border-top: none;
+    padding: 22px 8px 7px;
+    font-size: 9px;
+    gap: 5px;
+    color: #fff;
+  }
+  #board .ticket-footer .ticket-author { color: #fff; }
+  #board .ticket-footer .mini-avatar { width: 13px; height: 13px; margin-right: 3px; }
+  #board .ticket-budget { font-size: 9px; color: #ffcf8e; }
+  #board .ticket-title {
+    font-size: 12.5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  #board .ticket-overlay { gap: 3px; padding: 8px; max-height: 60%; overflow: hidden; }
+  #board .ticket-cat { font-size: 8px; padding: 3px 6px; }
   .like-btn { padding: 6px 8px; top: 8px; right: 8px; }
   .like-btn svg { width: 13px; height: 13px; }
-  .ticket-song-badge { width: 21px; height: 21px; bottom: 8px; right: 8px; }
+  .ticket-song-badge { width: 21px; height: 21px; bottom: 42px; right: 8px; }
   .trending-tab { padding: 6px 11px; font-size: 10px; }
+}
+
+/* ---------- Feed preference tabs (Shuffle / Staff Picks / Recent) — the
+   feed's own view, distinct from the trending strip's tabs. Lives inside
+   the fixed/sticky header so it always travels with the top icons and is
+   never left behind by scrolling. Floating, translucent labels rather
+   than a solid bar, to match the reference. ---------- */
+.feed-tabs-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-basis: 100%;
+  order: 5;
+  width: 100%;
+  margin-top: 8px;
+}
+.feed-tab {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.6);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-shadow: 0 1px 6px rgba(0,0,0,.6);
+  transition: background .15s ease, color .15s ease;
+}
+.feed-tab:hover { color: #fff; }
+.feed-tab.active {
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.request-page .feed-tab, body:not(.landing-body):not(.request-page) .feed-tab { color: rgba(17,17,17,.55); text-shadow: none; }
+.request-page .feed-tab:hover, body:not(.landing-body):not(.request-page) .feed-tab:hover { color: #111; }
+.request-page .feed-tab.active, body:not(.landing-body):not(.request-page) .feed-tab.active { background: rgba(17,17,17,.08); color: #111; }
+
+/* Staff-pick reorder controls (admin only, Staff Picks tab only). */
+.reorder-btns {
+  position: absolute;
+  z-index: 3;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reorder-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(4,6,10,.6);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reorder-btn:disabled { opacity: .3; cursor: default; }
+
+/* Mobile home feed: drop the header bar entirely, keep floating icons +
+   feed tabs fixed together in front of the scrolling posts. */
+@media (max-width: 600px) {
+  .landing-header {
+    background: none;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: max(10px, env(safe-area-inset-top)) 12px 0;
+  }
+  /* Icons now float directly over the hero/posts with no bar behind them,
+     so each one needs its own legibility backing. */
+  .landing-header .icon-btn,
+  .landing-header .avatar-btn {
+    background: rgba(4,6,10,.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+  }
 }

@@ -4,6 +4,7 @@ let currentUserId = null;
 let currentUserIsAdmin = false;
 let likesByRequest = new Map(); // request_id -> Set of user_ids who liked it
 let trendingMode = "recent"; // "recent" | "shuffle" | "staffpick"
+let feedMode = "shuffle"; // "shuffle" | "staffpick" | "recent" — the feed's own view, separate from trending's
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -39,7 +40,7 @@ async function loadFeed() {
 
   const requestsQuery = supabase
     .from("requests")
-    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, is_staff_pick, user_id, created_at, profiles!requests_user_id_fkey(username, avatar_url)")
+    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, is_staff_pick, staff_pick_rank, user_id, created_at, profiles!requests_user_id_fkey(username, avatar_url)")
     .eq("status", "open")
     .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
@@ -161,6 +162,55 @@ function renderTrending() {
   wireStaffPickButtons(strip);
 }
 
+function feedSourceList() {
+  if (feedMode === "shuffle") return shuffleArray(allRequests);
+  if (feedMode === "staffpick") {
+    return allRequests
+      .filter(r => r.is_staff_pick)
+      .slice()
+      .sort((a, b) => (a.staff_pick_rank ?? 0) - (b.staff_pick_rank ?? 0));
+  }
+  if (feedMode === "recent") {
+    const viewedIds = getRecentlyViewedIds();
+    const byId = new Map(allRequests.map(r => [r.id, r]));
+    return viewedIds.map(id => byId.get(id)).filter(Boolean);
+  }
+  return allRequests;
+}
+
+function initFeedTabs() {
+  const tabs = document.querySelectorAll("#feed-tabs");
+  tabs.forEach(row => {
+    row.addEventListener("click", (e) => {
+      const btn = e.target.closest(".feed-tab");
+      if (!btn) return;
+      feedMode = btn.dataset.mode;
+      document.querySelectorAll("#feed-tabs .feed-tab").forEach(b => b.classList.toggle("active", b.dataset.mode === feedMode));
+      renderFeed();
+    });
+  });
+}
+
+async function swapStaffPickRank(idA, idB) {
+  const a = allRequests.find(r => r.id === idA);
+  const b = allRequests.find(r => r.id === idB);
+  if (!a || !b) return;
+  const rankA = a.staff_pick_rank, rankB = b.staff_pick_rank;
+  a.staff_pick_rank = rankB;
+  b.staff_pick_rank = rankA;
+  renderFeed();
+  const [{ error: errA }, { error: errB }] = await Promise.all([
+    supabase.from("requests").update({ staff_pick_rank: rankB }).eq("id", idA),
+    supabase.from("requests").update({ staff_pick_rank: rankA }).eq("id", idB)
+  ]);
+  if (errA || errB) {
+    a.staff_pick_rank = rankA;
+    b.staff_pick_rank = rankB;
+    renderFeed();
+    alert("Couldn't reorder staff picks.");
+  }
+}
+
 function initTrendingTabs() {
   const tabs = document.getElementById("trending-tabs");
   if (!tabs) return;
@@ -224,12 +274,16 @@ function wireStaffPickButtons(root) {
       const request = allRequests.find(r => r.id === id);
       if (!request) return;
       const next = !request.is_staff_pick;
+      const prevRank = request.staff_pick_rank;
+      const nextRank = next ? (Math.max(0, ...allRequests.map(r => r.staff_pick_rank ?? 0)) + 1) : null;
       request.is_staff_pick = next;
+      request.staff_pick_rank = nextRank;
       btn.classList.toggle("is-picked", next);
       btn.title = next ? "Remove staff pick" : "Mark as staff pick";
-      const { error } = await supabase.from("requests").update({ is_staff_pick: next }).eq("id", id);
+      const { error } = await supabase.from("requests").update({ is_staff_pick: next, staff_pick_rank: nextRank }).eq("id", id);
       if (error) {
         request.is_staff_pick = !next;
+        request.staff_pick_rank = prevRank;
         btn.classList.toggle("is-picked", !next);
         alert("Couldn't update staff pick: " + error.message);
       }
@@ -239,16 +293,23 @@ function wireStaffPickButtons(root) {
 
 function renderFeed() {
   const board = document.getElementById("board");
+  const base = feedSourceList();
   const filtered = activeCategory
-    ? allRequests.filter(r => r.category === activeCategory)
-    : allRequests;
+    ? base.filter(r => r.category === activeCategory)
+    : base;
 
   if (!filtered.length) {
-    board.innerHTML = `<p class="empty-state">No open requests here yet. Be the first to post one.</p>`;
+    const emptyMessages = {
+      recent: "You haven't viewed any posts yet — browse Shuffle or Staff Picks to get started.",
+      staffpick: "No staff picks yet.",
+    };
+    board.innerHTML = `<p class="empty-state">${emptyMessages[feedMode] ?? "No open requests here yet. Be the first to post one."}</p>`;
     return;
   }
 
-  board.innerHTML = filtered.map(r => {
+  const showReorder = feedMode === "staffpick" && currentUserIsAdmin;
+
+  board.innerHTML = filtered.map((r, i) => {
     const likeCount = likesByRequest.get(r.id)?.size ?? 0;
     const isLiked = currentUserId ? !!likesByRequest.get(r.id)?.has(currentUserId) : false;
     return `
@@ -265,16 +326,35 @@ function renderFeed() {
           </div>
         </div>
         <div class="ticket-footer">
-          <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}@${r.profiles?.username ?? "someone"}</span>
+          <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${r.profiles?.username ?? "someone"}</span>
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
         </div>
       </a>
       ${r.user_id === currentUserId || currentUserIsAdmin ? `<button class="delete-btn" data-id="${r.id}" title="Delete">&times;</button>` : ""}
+      ${showReorder ? `
+        <div class="reorder-btns">
+          <button type="button" class="reorder-btn" data-swap-with="${filtered[i - 1]?.id ?? ""}" ${i === 0 ? "disabled" : ""} title="Move earlier" aria-label="Move earlier">&uarr;</button>
+          <button type="button" class="reorder-btn" data-swap-with="${filtered[i + 1]?.id ?? ""}" ${i === filtered.length - 1 ? "disabled" : ""} title="Move later" aria-label="Move later">&darr;</button>
+        </div>
+      ` : ""}
     </div>
   `;
   }).join("");
 
   wireLikeButtons(board);
+
+  if (showReorder) {
+    board.querySelectorAll(".reorder-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const wrap = btn.closest(".ticket-wrap");
+        const id = wrap.querySelector(".ticket").dataset.id;
+        const otherId = btn.dataset.swapWith;
+        if (!otherId) return;
+        swapStaffPickRank(id, otherId);
+      });
+    });
+  }
 
   document.querySelectorAll(".ticket[data-spotify]").forEach(ticket => {
     ticket.addEventListener("click", () => {
@@ -418,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadFeed();
   initCategoryRow();
   initTrendingTabs();
+  initFeedTabs();
   initNewRequestPanel();
   initImagePreview();
 });

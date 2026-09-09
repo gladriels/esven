@@ -74,7 +74,7 @@ function renderReel() {
         <h2 class="reel-item-title">${escapeHtml(r.title)}</h2>
         <p class="reel-item-desc">${escapeHtml(r.description ?? "")}</p>
         <div class="reel-item-footer">
-          <span>@${r.profiles?.username ?? "someone"}</span>
+          <span>${r.profiles?.username ?? "someone"}</span>
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : ""}
         </div>
         ${r.spotify_url ? `<div class="reel-spotify" id="spotify-${r.id}" data-uri="${spotifyTrackUri(r.spotify_url)}"></div>` : ""}
