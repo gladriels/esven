@@ -268,35 +268,51 @@ async function initRecForm() {
   section.style.display = "block";
   initRecImagePreview();
 
+  let isSubmittingRec = false;
+
   document.getElementById("rec-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const note = document.getElementById("rec-note").value.trim();
-    const link = applyAffiliateTag(document.getElementById("rec-link").value.trim());
-    const file = document.getElementById("rec-image-file").files[0];
+    if (isSubmittingRec) return; // guards against double-tap/double-submit firing this twice
+    isSubmittingRec = true;
 
-    let image_url = "";
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    const submitLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Posting...";
+
     try {
-      image_url = await uploadRecImage(user, file);
-    } catch (err) {
-      alert("Couldn't upload image: " + err.message);
-      return;
+      const note = document.getElementById("rec-note").value.trim();
+      const link = applyAffiliateTag(document.getElementById("rec-link").value.trim());
+      const file = document.getElementById("rec-image-file").files[0];
+
+      let image_url = "";
+      try {
+        image_url = await uploadRecImage(user, file);
+      } catch (err) {
+        alert("Couldn't upload image: " + err.message);
+        return;
+      }
+
+      const { error } = await supabase.from("recommendations").insert({
+        request_id: requestId,
+        user_id: user.id,
+        note, link, image_url
+      });
+
+      if (error) {
+        alert("Couldn't post: " + error.message);
+        return;
+      }
+
+      e.target.reset();
+      document.getElementById("rec-image-preview").style.display = "none";
+      document.getElementById("rec-upload-label-text").textContent = "+ Add a photo";
+      loadRecommendations();
+    } finally {
+      isSubmittingRec = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = submitLabel;
     }
-
-    const { error } = await supabase.from("recommendations").insert({
-      request_id: requestId,
-      user_id: user.id,
-      note, link, image_url
-    });
-
-    if (error) {
-      alert("Couldn't post: " + error.message);
-      return;
-    }
-
-    e.target.reset();
-    document.getElementById("rec-image-preview").style.display = "none";
-    document.getElementById("rec-upload-label-text").textContent = "+ Add a photo";
-    loadRecommendations();
   });
 }
 

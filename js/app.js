@@ -459,40 +459,56 @@ async function initNewRequestPanel() {
     if (e.target === panel) panel.classList.remove("open");
   });
 
+  let isSubmittingRequest = false;
+
   document.getElementById("request-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const user = await getCurrentUser();
-    if (!user) return;
+    if (isSubmittingRequest) return; // guards against double-tap/double-submit firing this twice
+    isSubmittingRequest = true;
 
-    const title = document.getElementById("req-title").value.trim();
-    const description = document.getElementById("req-desc").value.trim();
-    const budget = document.getElementById("req-budget").value.trim();
-    const category = document.getElementById("req-category").value;
-    const audience = document.getElementById("req-audience").value;
-    const spotify_url = document.getElementById("req-spotify").value.trim();
-    const imageFile = document.getElementById("req-image-file").files[0];
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    const submitLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Posting...";
 
-    let image_url = "";
     try {
-      image_url = await uploadRequestImage(user, imageFile);
-    } catch (err) {
-      alert("Couldn't upload image: " + err.message);
-      return;
+      const user = await getCurrentUser();
+      if (!user) return;
+
+      const title = document.getElementById("req-title").value.trim();
+      const description = document.getElementById("req-desc").value.trim();
+      const budget = document.getElementById("req-budget").value.trim();
+      const category = document.getElementById("req-category").value;
+      const audience = document.getElementById("req-audience").value;
+      const spotify_url = document.getElementById("req-spotify").value.trim();
+      const imageFile = document.getElementById("req-image-file").files[0];
+
+      let image_url = "";
+      try {
+        image_url = await uploadRequestImage(user, imageFile);
+      } catch (err) {
+        alert("Couldn't upload image: " + err.message);
+        return;
+      }
+
+      const { error } = await supabase.from("requests").insert({
+        user_id: user.id,
+        title, description, budget, category, audience, image_url, spotify_url
+      });
+
+      if (error) {
+        alert("Couldn't post: " + error.message);
+        return;
+      }
+
+      e.target.reset();
+      panel.classList.remove("open");
+      loadFeed();
+    } finally {
+      isSubmittingRequest = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = submitLabel;
     }
-
-    const { error } = await supabase.from("requests").insert({
-      user_id: user.id,
-      title, description, budget, category, audience, image_url, spotify_url
-    });
-
-    if (error) {
-      alert("Couldn't post: " + error.message);
-      return;
-    }
-
-    e.target.reset();
-    panel.classList.remove("open");
-    loadFeed();
   });
 }
 
