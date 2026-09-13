@@ -41,7 +41,7 @@ async function loadSolved() {
   grid.innerHTML = solved.map(r => `
     <a href="request.html#${r.id}" class="solved-card">
       ${r.image_url
-        ? `<img src="${r.image_url}" alt="" class="solved-thumb">`
+        ? `<img src="${r.image_url}" alt="" class="solved-thumb" loading="lazy" decoding="async">`
         : `<div class="solved-thumb solved-thumb-empty"></div>`}
       <p class="solved-title">${escapeHtml(r.title)}</p>
       <p class="solved-sub">${r.profiles?.username ?? "someone"}</p>

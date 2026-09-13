@@ -1,6 +1,9 @@
 const requestId = window.location.hash.slice(1);
 
 let currentRequest = null;
+// Resolves once loadRequest() has populated currentRequest. Other loaders that
+// only need it at the very end await this instead of running after it.
+let requestLoaded = null;
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -70,7 +73,7 @@ async function loadRequest() {
   const [{ data: r, error }, { data: likes }, user] = await Promise.all([
     supabase
       .from("requests")
-      .select("id, title, description, budget, category, spotify_url, image_url, is_sponsored, created_at, user_id, profiles!requests_user_id_fkey(username, avatar_url)")
+      .select("id, title, description, budget, category, spotify_url, image_url, image_width, image_height, is_sponsored, created_at, user_id, profiles!requests_user_id_fkey(username, avatar_url)")
       .eq("id", requestId)
       .single(),
     supabase.from("likes").select("user_id").eq("request_id", requestId),
@@ -88,14 +91,20 @@ async function loadRequest() {
   const likedBy = new Set((likes ?? []).map(l => l.user_id));
   const isLiked = user ? likedBy.has(user.id) : false;
 
+  // Known dimensions let the browser hold the right amount of space open, so
+  // the title and description below don't get shoved down when the photo lands.
+  const detailDims = r.image_width && r.image_height
+    ? ` width="${r.image_width}" height="${r.image_height}"`
+    : "";
+
   detail.innerHTML = `
-    ${r.image_url ? `<div class="detail-image"><img src="${r.image_url}" alt=""><button type="button" class="like-btn${isLiked ? " is-liked" : ""}" id="detail-like-btn" aria-label="Like">${ICONS.heart}<span class="like-count">${likedBy.size ? likedBy.size : ""}</span></button></div>` : ""}
+    ${r.image_url ? `<div class="detail-image"><img src="${r.image_url}" alt=""${detailDims} decoding="async"><button type="button" class="like-btn${isLiked ? " is-liked" : ""}" id="detail-like-btn" aria-label="Like">${ICONS.heart}<span class="like-count">${likedBy.size ? likedBy.size : ""}</span></button></div>` : ""}
     ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
     <h1>${escapeHtml(r.title)}</h1>
     <p>${escapeHtml(r.description ?? "")}</p>
     ${embed ? `<div class="spotify-player-shell" data-track-player><div id="request-spotify-player"></div><button class="spotify-play-hint" type="button" data-play-spotify>Tap to play on Spotify</button><iframe class="spotify-embed-fallback" src="${embed}" width="100%" height="152" frameborder="0" allow="encrypted-media"></iframe></div>` : ""}
     <div class="request-meta">
-      <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${r.profiles?.username ?? "someone"}</span>
+      <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar" width="36" height="36" loading="lazy" decoding="async">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${r.profiles?.username ?? "someone"}</span>
       ${r.budget ? `<span class="ticket-budget">Budget: ${escapeHtml(r.budget)}</span>` : ""}
       <span>${new Date(r.created_at).toLocaleDateString()}</span>
     </div>
@@ -139,12 +148,19 @@ async function loadRequest() {
 async function loadRecommendations() {
   const list = document.getElementById("rec-list");
 
-  const { data: recs, error } = await supabase
-    .from("recommendations")
-    .select("id, note, link, image_url, is_favorite, created_at, user_id, profiles(username, avatar_url)")
-    .eq("request_id", requestId)
-    .order("is_favorite", { ascending: false })
-    .order("created_at", { ascending: false });
+  // The recommendations query only needs the id from the URL, so it goes out
+  // at the same time as the request itself rather than queueing behind it.
+  // The session and profile reads ride along in the same batch.
+  const [{ data: recs, error }, user, profile] = await Promise.all([
+    supabase
+      .from("recommendations")
+      .select("id, note, link, image_url, image_width, image_height, is_favorite, created_at, user_id, profiles(username, avatar_url)")
+      .eq("request_id", requestId)
+      .order("is_favorite", { ascending: false })
+      .order("created_at", { ascending: false }),
+    getCurrentUser(),
+    getMyProfile()
+  ]);
 
   if (error) {
     list.innerHTML = `<p class="empty-state">Couldn't load recommendations: ${error.message}</p>`;
@@ -156,22 +172,20 @@ async function loadRecommendations() {
     return;
   }
 
-  const user = await getCurrentUser();
+  // "Mark favorite" is the request owner's call, so wait for the request row
+  // (already in flight) before deciding which buttons to draw.
+  await requestLoaded;
   const isOwner = user && currentRequest && user.id === currentRequest.user_id;
-  let isAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-    isAdmin = profile?.is_admin === true;
-  }
+  const isAdmin = profile?.is_admin === true;
 
   list.innerHTML = recs.map(rec => `
     <div class="rec-card ${rec.is_favorite ? "is-favorite" : ""}">
       ${rec.is_favorite ? `<span class="rec-favorite-badge">★ Favorite</span>` : ""}
-      ${rec.image_url ? `<div class="rec-image"><img src="${rec.image_url}" alt=""></div>` : ""}
+      ${rec.image_url ? `<div class="rec-image"><img src="${rec.image_url}" alt=""${rec.image_width && rec.image_height ? ` width="${rec.image_width}" height="${rec.image_height}"` : ""} loading="lazy" decoding="async"></div>` : ""}
       <p class="rec-note">${escapeHtml(rec.note)}</p>
       ${rec.link ? `<a class="rec-link" href="${escapeHtml(rec.link)}" target="_blank" rel="noopener">${escapeHtml(rec.link)}</a>` : ""}
       <div class="rec-footer">
-        <span class="ticket-author">${rec.profiles?.avatar_url ? `<img src="${rec.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${rec.profiles?.username ?? "someone"}</span>
+        <span class="ticket-author">${rec.profiles?.avatar_url ? `<img src="${rec.profiles.avatar_url}" class="mini-avatar" width="36" height="36" loading="lazy" decoding="async">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${rec.profiles?.username ?? "someone"}</span>
         <span class="rec-actions">
           ${isOwner && !rec.is_favorite ? `<button class="fav-btn" data-id="${rec.id}">Mark favorite</button>` : ""}
           ${user && (user.id === rec.user_id || isAdmin) ? `<button class="delete-rec-btn" data-id="${rec.id}">Delete</button>` : ""}
@@ -205,13 +219,15 @@ async function loadRecommendations() {
   requestAnimationFrame(() => revealOnScroll(".rec-card"));
 }
 
+// Returns { url, width, height } — see uploadRequestImage in app.js.
 async function uploadRecImage(user, file) {
-  if (!file) return "";
-  const path = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-  const { error } = await supabase.storage.from("request-images").upload(path, file);
+  if (!file) return { url: "", width: null, height: null };
+  const { blob, width, height, name } = await prepareImageForUpload(file);
+  const path = `${user.id}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+  const { error } = await supabase.storage.from("request-images").upload(path, blob);
   if (error) throw error;
   const { data } = supabase.storage.from("request-images").getPublicUrl(path);
-  return data.publicUrl;
+  return { url: data.publicUrl, width, height };
 }
 
 // No forced crop/aspect-ratio — just a minimum size so tiny images don't
@@ -285,9 +301,9 @@ async function initRecForm() {
       const link = applyAffiliateTag(document.getElementById("rec-link").value.trim());
       const file = document.getElementById("rec-image-file").files[0];
 
-      let image_url = "";
+      let image_url = "", image_width = null, image_height = null;
       try {
-        image_url = await uploadRecImage(user, file);
+        ({ url: image_url, width: image_width, height: image_height } = await uploadRecImage(user, file));
       } catch (err) {
         alert("Couldn't upload image: " + err.message);
         return;
@@ -296,7 +312,7 @@ async function initRecForm() {
       const { error } = await supabase.from("recommendations").insert({
         request_id: requestId,
         user_id: user.id,
-        note, link, image_url
+        note, link, image_url, image_width, image_height
       });
 
       if (error) {
@@ -390,10 +406,15 @@ function initPromoteModalClose() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await loadRequest();
-  await loadRecommendations();
+document.addEventListener("DOMContentLoaded", () => {
+  // All three network-bound loaders start together instead of in a chain.
+  requestLoaded = loadRequest();
+  loadRecommendations();
   initRecForm();
-  initPromoteBox();
   initPromoteModalClose();
+  requestLoaded.then(initPromoteBox);
+
+  // The hash *is* the request id, so a hash change means a different post.
+  // Without this the page would keep showing the previous one.
+  window.addEventListener("hashchange", () => window.location.reload());
 });

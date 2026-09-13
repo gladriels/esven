@@ -1,4 +1,11 @@
-const profileUsername = decodeURIComponent(window.location.hash.slice(1));
+// Read fresh each time rather than once at load: navigating from one profile
+// to another (tapping your own avatar while viewing someone else's page) only
+// changes the hash, so the page never reloads and this used to keep showing
+// whichever profile was opened first.
+function currentProfileUsername() {
+  return decodeURIComponent(window.location.hash.slice(1));
+}
+
 let profileRequests = [];
 let profileFeedMode = "staffpick"; // "shuffle" | "staffpick" | "recent"
 
@@ -20,6 +27,8 @@ async function loadProfile() {
   const reqContainer = document.getElementById("profile-requests");
   const recContainer = document.getElementById("profile-recs");
 
+  const profileUsername = currentProfileUsername();
+
   if (!profileUsername) {
     heroContainer.innerHTML = `<p class="empty-state">No profile specified.</p>`;
     reqContainer.innerHTML = "";
@@ -27,11 +36,17 @@ async function loadProfile() {
     return;
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url, created_at, bio, profile_spotify_url, likes_are_public")
-    .eq("username", profileUsername)
-    .single();
+  // Everything else on this page is keyed on profile.id, so this one lookup
+  // has to land first. The viewer's session comes from local storage, so it
+  // costs nothing to resolve alongside it.
+  const [{ data: profile, error: profileError }, viewer] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, username, avatar_url, created_at, bio, profile_spotify_url, likes_are_public")
+      .eq("username", profileUsername)
+      .maybeSingle(),
+    getCurrentUser()
+  ]);
 
   if (profileError || !profile) {
     heroContainer.innerHTML = `<p class="empty-state">Couldn't find ${escapeHtml(profileUsername)}${profileError ? `: ${escapeHtml(profileError.message)}` : ""}</p>`;
@@ -40,42 +55,45 @@ async function loadProfile() {
     return;
   }
 
-  const reqResult = await supabase
-    .from("requests")
-    .select("id, title, description, budget, category, image_url, spotify_url, created_at, is_staff_pick, staff_pick_rank")
-    .eq("user_id", profile.id)
-    .order("created_at", { ascending: false });
+  const isOwnProfile = Boolean(viewer && viewer.id === profile.id);
 
-  const recResult = await supabase
-    .from("recommendations")
-    .select("id, note, created_at, request_id, requests(id, title)")
-    .eq("user_id", profile.id)
-    .order("created_at", { ascending: false });
+  // The remaining six reads don't depend on each other, so they go out in one
+  // batch. They used to run one after another, which meant the profile header
+  // sat on "Loading..." for the sum of every round trip instead of the slowest.
+  const [reqResult, recResult, followerResult, followingResult, followRow, viewerProfile] = await Promise.all([
+    supabase
+      .from("requests")
+      .select("id, title, description, budget, category, image_url, spotify_url, created_at, is_staff_pick, staff_pick_rank")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("recommendations")
+      .select("id, note, created_at, request_id, requests(id, title)")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false }),
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id),
+    viewer && !isOwnProfile
+      ? supabase.from("follows").select("follower_id").eq("follower_id", viewer.id).eq("following_id", profile.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    getMyProfile()
+  ]);
 
   const requests = reqResult.data;
   const recs = recResult.data;
+  const followerCount = followerResult.count;
+  const followingCount = followingResult.count;
+  let viewerFollowsProfile = Boolean(followRow.data);
+  const viewerIsAdmin = viewerProfile?.is_admin === true;
 
-  const { data: { user: viewer } } = await supabase.auth.getUser();
-  const [{ count: followerCount }, { count: followingCount }] = await Promise.all([
-    supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
-    supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id)
-  ]);
-  let viewerFollowsProfile = false;
-  if (viewer && viewer.id !== profile.id) {
-    const { data } = await supabase.from("follows").select("follower_id").eq("follower_id", viewer.id).eq("following_id", profile.id).maybeSingle();
-    viewerFollowsProfile = Boolean(data);
-  }
-  let viewerIsAdmin = false;
-  if (viewer) {
-    const { data: viewerProfile } = await supabase.from("profiles").select("is_admin").eq("id", viewer.id).maybeSingle();
-    viewerIsAdmin = viewerProfile?.is_admin === true;
-  }
+  // Fire this now rather than after the header renders — the Liked tab starts
+  // hidden, so it can fill in while the viewer is looking at Requests.
+  const likedPostsLoaded = loadLikedPosts(profile, isOwnProfile);
 
   const songEmbed = profileSpotifyEmbedUrl(profile.profile_spotify_url);
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   const postCount = (requests?.length ?? 0) + (recs?.length ?? 0);
-  const isOwnProfile = viewer && viewer.id === profile.id;
 
   heroContainer.innerHTML = `
     <div class="ig-header">
@@ -162,7 +180,7 @@ async function loadProfile() {
     `).join("");
   }
 
-  await loadLikedPosts(profile, isOwnProfile);
+  await likedPostsLoaded;
 }
 
 async function loadLikedPosts(profile, isOwnProfile) {
@@ -214,7 +232,7 @@ async function loadLikedPosts(profile, isOwnProfile) {
 
   likedContainer.innerHTML = posts.map(r => `
     <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
-      ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
+      ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" loading="lazy" decoding="async" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
       <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
       <span class="ig-grid-item-overlay">
         ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
@@ -261,7 +279,7 @@ function renderProfileGrid() {
 
   reqContainer.innerHTML = list.map(r => `
     <a href="request.html#${r.id}" class="ig-grid-item${r.image_url ? " has-image" : ""}">
-      ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
+      ${r.image_url ? `<img src="${r.image_url}" alt="${escapeHtml(r.title)}" loading="lazy" decoding="async" onerror="this.remove(); this.parentElement.classList.remove('has-image')">` : ""}
       <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
       <span class="ig-grid-item-overlay">
         ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
@@ -291,4 +309,21 @@ function wireProfileTabs() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => { wireProfileTabs(); wireFeedTabs(); loadProfile(); });
+function resetProfilePanels() {
+  document.getElementById("profile-hero-container").innerHTML = `<p class="empty-state">Loading...</p>`;
+  document.getElementById("profile-requests").innerHTML = `<p class="empty-state">Loading...</p>`;
+  document.getElementById("profile-recs").innerHTML = `<p class="empty-state">Loading...</p>`;
+  document.getElementById("profile-liked").innerHTML = `<p class="empty-state">Loading...</p>`;
+  profileRequests = [];
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  wireProfileTabs();
+  wireFeedTabs();
+  loadProfile();
+
+  window.addEventListener("hashchange", () => {
+    resetProfilePanels();
+    loadProfile();
+  });
+});

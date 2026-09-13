@@ -39,18 +39,24 @@ async function loadFeed() {
 
   const requestsQuery = supabase
     .from("requests")
-    .select("id, title, description, budget, category, audience, spotify_url, image_url, is_sponsored, is_staff_pick, staff_pick_rank, user_id, created_at, profiles!requests_user_id_fkey(username, avatar_url)")
+    .select("id, title, description, budget, category, audience, spotify_url, image_url, image_width, image_height, is_sponsored, is_staff_pick, staff_pick_rank, user_id, created_at, profiles!requests_user_id_fkey(username, avatar_url)")
     .eq("status", "open")
     .order("is_sponsored", { ascending: false })
     .order("created_at", { ascending: false });
 
-  const [{ data: requests, error }, user, { data: likes }] = await Promise.all([
+  // All four of these go out at once. getCurrentUser() reads the cached
+  // session locally, and getMyProfile() is shared with the auth bar, so the
+  // admin flag is known *before* the first render — the feed used to paint
+  // once without the staff-pick stars and then repaint the whole board a
+  // round trip later, which is what made the page visibly jump on load.
+  const [{ data: requests, error }, user, profile, { data: likes }] = await Promise.all([
     requestsQuery,
     getCurrentUser(),
+    getMyProfile(),
     supabase.from("likes").select("request_id, user_id")
   ]);
   currentUserId = user?.id ?? null;
-  currentUserIsAdmin = false;
+  currentUserIsAdmin = profile?.is_admin === true;
 
   likesByRequest = new Map();
   (likes ?? []).forEach(({ request_id, user_id }) => {
@@ -67,12 +73,6 @@ async function loadFeed() {
   renderTrending();
   renderFeed();
   renderSectionTiles();
-
-  if (user) {
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-    currentUserIsAdmin = profile?.is_admin === true;
-    if (currentUserIsAdmin) { renderTrending(); renderFeed(); }
-  }
 }
 
 function renderSectionTiles() {
@@ -161,7 +161,7 @@ function renderTrending() {
     return `
     <a href="request.html#${r.id}" class="trending-card" data-id="${r.id}">
       <div class="trending-image">
-        <img src="${r.image_url}" alt="">
+        <img src="${r.image_url}" alt="" loading="lazy" decoding="async">
         ${currentUserIsAdmin ? `<button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>` : ""}
         <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
       </div>
@@ -290,9 +290,22 @@ function titleFontSizeFor(text) {
 
 function renderTicketMedia(r, likeButtonHtml) {
   if (r.image_url) {
+    // width/height let the browser reserve the right box before the bytes
+    // land, so the masonry measures correctly on the first pass instead of
+    // laying out against zero-height images and jumping as each one loads.
+    //
+    // The ratio has to be repeated as an inline style: the feed's own
+    // `#board .ticket-image img { aspect-ratio: auto }` (which exists to undo
+    // the 16/10 and 4/5 ratios other pages force) also cancels the ratio the
+    // browser would otherwise derive from the width/height attributes, so an
+    // unloaded image collapses to zero height. Inline wins over the sheet, and
+    // posts with no stored dimensions keep the old `auto` behaviour.
+    const dims = r.image_width && r.image_height
+      ? ` width="${r.image_width}" height="${r.image_height}" style="aspect-ratio: ${r.image_width} / ${r.image_height}"`
+      : "";
     return `
         <div class="ticket-image">
-          <img src="${r.image_url}" alt="">
+          <img src="${r.image_url}" alt=""${dims} loading="lazy" decoding="async">
           ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
           ${likeButtonHtml}
           <div class="ticket-overlay">
@@ -336,7 +349,7 @@ function renderFeed() {
         ${r.is_sponsored ? `<span class="sponsored-badge">★ Sponsored</span>` : ""}
         ${renderTicketMedia(r, likeButtonHtml)}
         <div class="ticket-footer">
-          <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${r.profiles?.username ?? "someone"}</span>
+          <span class="ticket-author">${r.profiles?.avatar_url ? `<img src="${r.profiles.avatar_url}" class="mini-avatar" width="36" height="36" loading="lazy" decoding="async">` : `<span class="mini-avatar mini-avatar-empty"></span>`}${r.profiles?.username ?? "someone"}</span>
           ${r.budget ? `<span class="ticket-budget">${escapeHtml(r.budget)}</span>` : "<span></span>"}
         </div>
       </a>
@@ -386,13 +399,16 @@ function initCategoryRow() {
   });
 }
 
+// Returns { url, width, height } — dimensions get stored alongside the post so
+// the feed can reserve exact space for the image before it loads.
 async function uploadRequestImage(user, file) {
-  if (!file) return "";
-  const path = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-  const { error } = await supabase.storage.from("request-images").upload(path, file);
+  if (!file) return { url: "", width: null, height: null };
+  const { blob, width, height, name } = await prepareImageForUpload(file);
+  const path = `${user.id}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+  const { error } = await supabase.storage.from("request-images").upload(path, blob);
   if (error) throw error;
   const { data } = supabase.storage.from("request-images").getPublicUrl(path);
-  return data.publicUrl;
+  return { url: data.publicUrl, width, height };
 }
 
 // No forced crop/aspect-ratio any more — people post whatever shape photo
@@ -483,9 +499,9 @@ async function initNewRequestPanel() {
       const spotify_url = document.getElementById("req-spotify").value.trim();
       const imageFile = document.getElementById("req-image-file").files[0];
 
-      let image_url = "";
+      let image_url = "", image_width = null, image_height = null;
       try {
-        image_url = await uploadRequestImage(user, imageFile);
+        ({ url: image_url, width: image_width, height: image_height } = await uploadRequestImage(user, imageFile));
       } catch (err) {
         alert("Couldn't upload image: " + err.message);
         return;
@@ -493,7 +509,8 @@ async function initNewRequestPanel() {
 
       const { error } = await supabase.from("requests").insert({
         user_id: user.id,
-        title, description, budget, category, audience, image_url, spotify_url
+        title, description, budget, category, audience, image_url, spotify_url,
+        image_width, image_height
       });
 
       if (error) {

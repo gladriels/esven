@@ -68,6 +68,32 @@ async function getCurrentUser() {
   return session?.user ?? null;
 }
 
+// The signed-in user's own profile row is needed by the auth bar, the feed
+// (is_admin, for the staff-pick stars) and the profile page. Fetching it once
+// per page load and sharing the promise turns three identical round trips into
+// one, and means the feed no longer has to render twice — once without the
+// admin controls and again after the admin check comes back.
+let myProfilePromise = null;
+
+function getMyProfile() {
+  if (myProfilePromise) return myProfilePromise;
+  myProfilePromise = (async () => {
+    const user = await getCurrentUser();
+    if (!user) return null;
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, username, avatar_url, is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+    return data ?? null;
+  })();
+  return myProfilePromise;
+}
+
+function invalidateMyProfile() {
+  myProfilePromise = null;
+}
+
 async function sendMagicLink(email) {
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -103,8 +129,11 @@ async function signOut() {
 }
 
 async function uploadAvatar(user, file) {
-  const path = `avatars/${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-  const { error } = await supabase.storage.from("request-images").upload(path, file);
+  // Avatars render at 18-32px in the feed and 96px on a profile; 512 is ample.
+  // The cropper already outputs 512, this just guarantees it for any path in.
+  const { blob, name } = await prepareImageForUpload(file, { maxEdge: 512 });
+  const path = `avatars/${user.id}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+  const { error } = await supabase.storage.from("request-images").upload(path, blob);
   if (error) throw error;
   const { data } = supabase.storage.from("request-images").getPublicUrl(path);
   return data.publicUrl;
@@ -137,7 +166,7 @@ function openProfileModal(user, currentUsername, currentAvatar) {
   document.body.appendChild(modal); modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); }); document.getElementById("profile-close-btn").onclick = () => modal.remove();
   let pendingFile = null;
   document.getElementById("avatar-file").onchange = e => { const file = e.target.files[0]; if (!file) return; openAvatarCropper(file, cropped => { pendingFile = cropped; const preview = document.getElementById("avatar-preview"); preview.src = URL.createObjectURL(cropped); preview.classList.remove("avatar-preview-empty"); }); };
-  document.getElementById("profile-save-btn").onclick = async () => { const username = document.getElementById("profile-username").value.trim(), updates = {}; if (username) updates.username = username; try { if (pendingFile) updates.avatar_url = await uploadAvatar(user, pendingFile); if (Object.keys(updates).length) { const { error } = await supabase.from("profiles").update(updates).eq("id", user.id); if (error) throw error; } modal.remove(); renderAuthBar(); } catch (err) { alert("Couldn't save: " + err.message); } };
+  document.getElementById("profile-save-btn").onclick = async () => { const username = document.getElementById("profile-username").value.trim(), updates = {}; if (username) updates.username = username; try { if (pendingFile) updates.avatar_url = await uploadAvatar(user, pendingFile); if (Object.keys(updates).length) { const { error } = await supabase.from("profiles").update(updates).eq("id", user.id); if (error) throw error; } invalidateMyProfile(); modal.remove(); renderAuthBar(); } catch (err) { alert("Couldn't save: " + err.message); } };
 }
 function renderLoginShell(bar) {
   bar.innerHTML = `
@@ -209,11 +238,7 @@ async function renderAuthBar() {
   const user = await getCurrentUser();
 
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("username, avatar_url")
-      .eq("id", user.id)
-      .single();
+    const profile = await getMyProfile();
 
     bar.innerHTML = `
       <button id="avatar-btn" class="avatar-btn" title="${profile?.username ?? "you"}" aria-label="Your profile">
