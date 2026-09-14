@@ -20,10 +20,8 @@ const CARD_FOOTER_H = 96;
 
 const SHARE_BACKGROUNDS = ["liquid", "black", "white"];
 
-// The feed-post size exists for promoting the site, so it's offered to this
-// account only. Gated on the username rather than the is_admin flag because
-// there is more than one admin.
-const POSTER_FORMAT_ACCOUNT = "elvanmire";
+// The feed-post size exists for promoting the site, so it's offered to
+// admins only.
 
 // Canvas can only use a font weight the browser has actually downloaded.
 // Google Fonts serves each weight as its own file and only fetches the ones
@@ -257,75 +255,101 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
   const footerBottom = H - CARD_PAD;
   const bottomLimit = H - CARD_PAD - CARD_FOOTER_H - 34;
 
-  const maxTitleLines = img ? 3 : 6;
-  // The 4:5 card has far less height to spend, so it starts the title ramp
-  // lower — otherwise a big title would squeeze the photo down to nothing.
-  const maxTitleSize = format === "post" ? 88 : 112;
-
-  const title = fitTitle(ctx, post.title || "Untitled", contentW, maxTitleLines, maxTitleSize);
-  const titleLineH = Math.round(title.size * 1.08);
-  const titleH = title.lines.length * titleLineH;
-
   const hasTag = Boolean(post.category);
   const hasBudget = Boolean(post.budget);
   const hasAuthor = Boolean(post.username);
 
-  const GAP_ART = 40;
+  // The 4:5 card has far less height to spend, so it starts the title ramp
+  // lower — otherwise a big title would crowd the photo it sits on.
+  const maxTitleSize = format === "post" ? 88 : 112;
   const GAP_TAG = 20;
+  const OVERLAY_PAD = 44;
 
-  let textH = titleH;
-  if (hasTag) textH += 52 + GAP_TAG;
+  // Type sitting on the photo is always light — it has the scrim under it,
+  // not the card's background, so it doesn't follow the card's theme.
+  const photoTheme = { pillBg: "rgba(255,255,255,0.24)", pillInk: "#FFFFFF" };
 
-  let artW = 0, artH = 0;
   if (img) {
-    const available = bottomLimit - topLimit - textH - GAP_ART;
-    const maxArtH = Math.max(300, Math.min(Math.round(H * 0.76), available));
+    // The name goes *on* the photo, so the photo is no longer sharing the
+    // height with a text block underneath — it takes everything between the
+    // top edge and the footer.
+    const available = bottomLimit - topLimit;
+    const maxArtH = Math.max(300, Math.min(Math.round(H * 0.9), available));
     const scale = Math.min(contentW / img.naturalWidth, maxArtH / img.naturalHeight);
-    artW = Math.round(img.naturalWidth * scale);
-    artH = Math.round(img.naturalHeight * scale);
-  }
-
-  // Photo first, title tucked underneath. Biased upward so any slack falls
-  // between the title and the footer rather than above the photo. A
-  // text-only card has no photo to lead with, so it sits nearer the middle
-  // instead of stranding the title at the top of an empty page.
-  const blockH = (img ? artH + GAP_ART : 0) + textH;
-  const bias = img ? 0.3 : 0.42;
-  let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * bias);
-
-  // ---- artwork ----
-  if (img) {
+    const artW = Math.round(img.naturalWidth * scale);
+    const artH = Math.round(img.naturalHeight * scale);
     const artX = Math.round((W - artW) / 2);
+    const artY = Math.round(topLimit + (available - artH) * 0.45);
+
+    // Fit the name to the photo's width, then step it down further if the
+    // overlay would take up too much of the photo it's meant to sit on.
+    const titleMaxW = artW - OVERLAY_PAD * 2;
+    let sizeCap = maxTitleSize;
+    let title, titleLineH, titleH, overlayH;
+    while (true) {
+      title = fitTitle(ctx, post.title || "Untitled", titleMaxW, 3, sizeCap);
+      titleLineH = Math.round(title.size * 1.08);
+      titleH = title.lines.length * titleLineH;
+      overlayH = titleH + (hasTag ? 52 + GAP_TAG : 0);
+      if (overlayH <= artH * 0.55 || sizeCap <= 28) break;
+      sizeCap = Math.max(28, Math.round(sizeCap * 0.85));
+    }
+
     ctx.save();
     ctx.shadowColor = background === "white" ? "rgba(17,17,17,0.22)" : "rgba(0,0,0,0.55)";
     ctx.shadowBlur = 70;
     ctx.shadowOffsetY = 26;
-    roundRectPath(ctx, artX, y, artW, artH, 34);
+    roundRectPath(ctx, artX, artY, artW, artH, 34);
     ctx.fillStyle = "#000";
     ctx.fill();
     ctx.restore();
 
+    // Everything from here is clipped to the photo's rounded rect, so the
+    // scrim follows its corners and the name can't spill onto the card.
     ctx.save();
-    roundRectPath(ctx, artX, y, artW, artH, 34);
+    roundRectPath(ctx, artX, artY, artW, artH, 34);
     ctx.clip();
-    ctx.drawImage(img, artX, y, artW, artH);
+    ctx.drawImage(img, artX, artY, artW, artH);
+
+    const scrimH = Math.min(artH, overlayH + OVERLAY_PAD * 2 + 140);
+    const scrimTop = artY + artH - scrimH;
+    const scrim = ctx.createLinearGradient(0, scrimTop, 0, artY + artH);
+    scrim.addColorStop(0, "rgba(0,0,0,0)");
+    scrim.addColorStop(0.55, "rgba(0,0,0,0.46)");
+    scrim.addColorStop(1, "rgba(0,0,0,0.84)");
+    ctx.fillStyle = scrim;
+    ctx.fillRect(artX, scrimTop, artW, scrimH);
+
+    let ty = artY + artH - OVERLAY_PAD - titleH;
+    if (hasTag) {
+      drawTagPill(ctx, post.category, artX + OVERLAY_PAD, ty - GAP_TAG - 52, photoTheme);
+    }
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = `800 ${title.size}px Inter, sans-serif`;
+    for (const line of title.lines) {
+      ty += titleLineH;
+      ctx.fillText(line, artX + OVERLAY_PAD, ty - Math.round(titleLineH * 0.2));
+    }
     ctx.restore();
+  } else {
+    // No photo to sit on, so the name keeps the card's own theme and sits
+    // near the middle rather than stranded at the top of an empty page.
+    const title = fitTitle(ctx, post.title || "Untitled", contentW, 6, maxTitleSize);
+    const titleLineH = Math.round(title.size * 1.08);
+    const titleH = title.lines.length * titleLineH;
+    const blockH = titleH + (hasTag ? 52 + GAP_TAG : 0);
+    let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * 0.42);
 
-    y += artH + GAP_ART;
-  }
-
-  // ---- tag ----
-  if (hasTag) {
-    drawTagPill(ctx, post.category, CARD_PAD, y, theme);
-    y += 52 + GAP_TAG;
-  }
-
-  // ---- title ----
-  ctx.fillStyle = theme.ink;
-  ctx.font = `800 ${title.size}px Inter, sans-serif`;
-  for (const line of title.lines) {
-    y += titleLineH;
-    ctx.fillText(line, CARD_PAD, y - Math.round(titleLineH * 0.2));
+    if (hasTag) {
+      drawTagPill(ctx, post.category, CARD_PAD, y, theme);
+      y += 52 + GAP_TAG;
+    }
+    ctx.fillStyle = theme.ink;
+    ctx.font = `800 ${title.size}px Inter, sans-serif`;
+    for (const line of title.lines) {
+      y += titleLineH;
+      ctx.fillText(line, CARD_PAD, y - Math.round(titleLineH * 0.2));
+    }
   }
 
   // ---- footer left: brand + slogan ----

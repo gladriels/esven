@@ -173,10 +173,10 @@ function wireShareButton(post) {
         image_url: post.image_url,
         username: post.profiles?.username ?? null
       };
-      // The 4:5 feed-post size is for promoting the site, so only the
-      // promoting account is offered the choice; everyone else shares a story.
+      // The 4:5 feed-post size is for promoting the site, so it's offered to
+      // admins only; everyone else shares a story.
       const viewer = await getMyProfile();
-      const canPickFormat = viewer?.username === POSTER_FORMAT_ACCOUNT;
+      const canPickFormat = viewer?.is_admin === true;
 
       const background = card.image_url ? "liquid" : "white";
       const format = "story";

@@ -1,6 +1,6 @@
-# Deploying Esven to Netlify
+# Deploying Glares to Netlify
 
-Esven currently runs on Vercel (`esven-seven.vercel.app`). This repo is now
+Glares currently runs on Vercel (`esven-seven.vercel.app`). This repo is now
 also set up to deploy to Netlify without changing the frontend at all — the
 static site and the API functions in `api/` work unchanged; `netlify.toml`
 and `netlify/functions/` are the only additions, and Vercel deployment still
@@ -47,7 +47,7 @@ works if you keep it.
 1. **Create a Netlify account** (or sign in with GitHub) at
    [netlify.com](https://app.netlify.com) — this has to be you, not me.
 2. **"Add new site" → "Import an existing project"** and connect the
-   `reqly`/Esven GitHub repo. Leave the build command as `npm install` and
+   `reqly`/Glares GitHub repo. Leave the build command as `npm install` and
    publish directory as `.` (netlify.toml already has these — Netlify should
    pick them up automatically).
 3. **Copy every environment variable from Vercel's dashboard into Netlify's**

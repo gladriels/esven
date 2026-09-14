@@ -184,7 +184,7 @@ function renderLoginShell(bar) {
     panel.innerHTML = `
       <section class="new-request auth-panel-card">
         <button class="panel-close" type="button" data-close>&times;</button>
-        <p class="auth-panel-eyebrow">Esven</p>
+        <p class="auth-panel-eyebrow">Glares</p>
         <h2>${isSignUp ? "Create your account" : "Welcome back"}</h2>
         <p class="field-hint">${isSignUp ? "Join to post requests and share recommendations." : "Sign in with your email and password."}</p>
         <form id="auth-panel-form">
@@ -193,7 +193,7 @@ function renderLoginShell(bar) {
           <button type="submit" class="btn auth-submit">${isSignUp ? "Create account" : "Sign in"}</button>
           <span id="auth-panel-status" class="login-status"></span>
         </form>
-        ${isSignUp ? `<p class="auth-panel-switch">Already a member? <button type="button" class="link-btn" data-switch>Sign in</button></p>` : `<p class="auth-panel-switch"><button type="button" class="link-btn" data-forgot-password>Forgot password?</button><br>New to Esven? <button type="button" class="link-btn" data-switch>Create an account</button></p>`}
+        ${isSignUp ? `<p class="auth-panel-switch">Already a member? <button type="button" class="link-btn" data-switch>Sign in</button></p>` : `<p class="auth-panel-switch"><button type="button" class="link-btn" data-forgot-password>Forgot password?</button><br>New to Glares? <button type="button" class="link-btn" data-switch>Create an account</button></p>`}
       </section>`;
     document.body.appendChild(panel);
     panel.querySelector("[data-close]").onclick = () => panel.remove();
