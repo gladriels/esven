@@ -1,0 +1,17 @@
+# Esven has no build step (vanilla HTML/CSS/JS) — the "build" here just
+# installs the dependencies (@supabase/supabase-js, web-push) that the
+# functions in netlify/functions/ need at runtime. `publish = "."` ships the
+# repo root as-is, same as Vercel does today.
+[build]
+  command = "npm install"
+  publish = "."
+  functions = "netlify/functions"
+
+# The frontend calls /api/create-promotion, /api/check-promotion, etc.
+# (see js/request.js, js/profile.js) — this rewrite means those calls keep
+# working unchanged instead of every fetch() in the codebase needing to
+# become /.netlify/functions/create-promotion.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
