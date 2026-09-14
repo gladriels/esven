@@ -633,6 +633,65 @@ textarea { resize: vertical; min-height: 70px; }
   position: relative;
 }
 
+/* ---------- Share-as-poster ---------- */
+
+.share-row {
+  display: flex;
+  margin: 18px 0 6px;
+}
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.share-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.share-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(17,17,17,0.62);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 220;
+  padding: 20px;
+}
+.share-modal.open { display: flex; }
+
+.share-modal-inner {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 22px;
+  max-width: 360px;
+  width: 100%;
+  position: relative;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+/* The poster is a tall 9:16 image — cap it by height so the whole thing is
+   visible in the dialog instead of overflowing on short screens. */
+.share-preview {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 62vh;
+  margin: 8px auto 16px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(17,17,17,0.18);
+}
+
+.share-actions {
+  display: flex;
+  gap: 10px;
+}
+.share-actions .btn { flex: 1; }
+.share-hint { margin: 12px 0 0; text-align: center; }
+
 /* The box hugs the photo instead of being a fixed frame the photo is fitted
    into. It used to be `width: 100%` + `object-fit: contain` over a near-black
    background, which letterboxed every photo whose shape didn't match the
