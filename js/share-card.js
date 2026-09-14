@@ -3,14 +3,17 @@
 // canvas in the browser (no server, no build step), then handed to the native
 // share sheet via the Web Share API, with a download fallback on desktop.
 //
-// The backdrop colour is sampled from the post's own photo, so every card
-// comes out looking made for that item rather than dropped into a template.
+// Three backdrops: the post's own photo blown up and blurred behind itself,
+// solid black, or Esven's off-white.
 
 const CARD_W = 1080;
 const CARD_H = 1920;          // 9:16 — Instagram/TikTok story shape
-const CARD_PAD = 80;
+const CARD_PAD = 56;
 const CARD_TYPE = "image/jpeg";
 const CARD_QUALITY = 0.94;
+const CARD_TAGLINE = "real people living in the real world";
+
+const SHARE_BACKGROUNDS = ["liquid", "black", "white"];
 
 // Canvas can only use a font weight the browser has actually downloaded.
 // Google Fonts serves each weight as its own file and only fetches the ones
@@ -19,9 +22,9 @@ const CARD_QUALITY = 0.94;
 async function ensureCardFonts() {
   if (!document.fonts) return;
   const needed = [
-    "800 88px Inter",
-    "700 44px Inter",
-    "500 30px Inter",
+    "800 104px Inter",
+    "700 48px Inter",
+    "500 34px Inter",
     "600 26px 'IBM Plex Mono'",
     "600 56px 'Cormorant Garamond'"
   ];
@@ -33,8 +36,13 @@ async function ensureCardFonts() {
   }
 }
 
+// Keyed by URL so switching backgrounds re-renders instantly instead of
+// re-downloading a multi-megabyte photo each time.
+const cardImageCache = new Map();
+
 function loadCardImage(src) {
-  return new Promise((resolve, reject) => {
+  if (cardImageCache.has(src)) return cardImageCache.get(src);
+  const promise = new Promise((resolve, reject) => {
     const img = new Image();
     // Required so the canvas isn't tainted and toBlob() still works.
     // Supabase storage serves public objects with access-control-allow-origin: *.
@@ -43,55 +51,58 @@ function loadCardImage(src) {
     img.onerror = () => reject(new Error("Couldn't load that image"));
     img.src = src;
   });
+  cardImageCache.set(src, promise);
+  return promise;
 }
 
-// Average the photo down to a single colour, weighting saturated pixels more
-// heavily — a flat average of a photo tends toward muddy grey, which makes
-// every card look the same.
-function sampleBackdrop(img) {
-  const size = 24;
-  const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
-  const ctx = c.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(img, 0, 0, size, size);
-
-  let r = 0, g = 0, b = 0, total = 0;
-  try {
-    const { data } = ctx.getImageData(0, 0, size, size);
-    for (let i = 0; i < data.length; i += 4) {
-      const rr = data[i], gg = data[i + 1], bb = data[i + 2];
-      const max = Math.max(rr, gg, bb);
-      const min = Math.min(rr, gg, bb);
-      const sat = max === 0 ? 0 : (max - min) / max;
-      const weight = 0.25 + sat;
-      r += rr * weight; g += gg * weight; b += bb * weight; total += weight;
-    }
-  } catch (_) {
-    return { top: "#2A2A2E", bottom: "#0B0B0A" };
+// Source rect for a centre "cover" crop at a given zoom.
+function coverCrop(img, targetRatio, zoom) {
+  const srcRatio = img.naturalWidth / img.naturalHeight;
+  let sw, sh;
+  if (srcRatio > targetRatio) {
+    sh = img.naturalHeight / zoom;
+    sw = sh * targetRatio;
+  } else {
+    sw = img.naturalWidth / zoom;
+    sh = sw / targetRatio;
   }
-  if (!total) return { top: "#2A2A2E", bottom: "#0B0B0A" };
-
-  r /= total; g /= total; b /= total;
-
-  // Averaging a photo pulls every colour toward the middle, so the raw result
-  // reads as near-black once it's darkened enough for white type. Push the
-  // channels away from their own mean to bring the hue back, then rescale to
-  // a fixed brightness — that way the backdrop is always dark enough to read
-  // on, but you can still tell which photo it came from.
-  const mean = (r + g + b) / 3;
-  const saturate = 1.75;
-  r = mean + (r - mean) * saturate;
-  g = mean + (g - mean) * saturate;
-  b = mean + (b - mean) * saturate;
-
-  const peak = Math.max(r, g, b, 1);
-  const toStop = (targetPeak) => {
-    const k = targetPeak / peak;
-    const m = (v) => Math.round(Math.min(255, Math.max(0, v * k)));
-    return `rgb(${m(r)}, ${m(g)}, ${m(b)})`;
+  return {
+    sx: (img.naturalWidth - sw) / 2,
+    sy: (img.naturalHeight - sh) / 2,
+    sw,
+    sh
   };
-  return { top: toStop(104), bottom: toStop(24) };
+}
+
+// The photo, zoomed in and blurred out, filling the whole card behind itself.
+//
+// The blur comes from drawing the photo down to a tiny canvas and then
+// blowing it back up — the browser's own bilinear smoothing does the work.
+// ctx.filter would be tidier but Safari only got it in 17.4, and this needs
+// to work on whatever phone someone opens Instagram with.
+function drawLiquidBackdrop(ctx, img) {
+  const small = document.createElement("canvas");
+  small.width = 42;
+  small.height = 74;
+  const sctx = small.getContext("2d");
+  const { sx, sy, sw, sh } = coverCrop(img, small.width / small.height, 1.6);
+  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, small.width, small.height);
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  try { ctx.filter = "saturate(1.45)"; } catch (_) {}
+  ctx.drawImage(small, 0, 0, CARD_W, CARD_H);
+  ctx.restore();
+
+  // Scrim: without it, white type lands on whatever brightness the photo
+  // happened to have there and becomes unreadable.
+  const scrim = ctx.createLinearGradient(0, 0, 0, CARD_H);
+  scrim.addColorStop(0, "rgba(6,6,8,0.52)");
+  scrim.addColorStop(0.45, "rgba(6,6,8,0.40)");
+  scrim.addColorStop(1, "rgba(6,6,8,0.82)");
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
 }
 
 function roundRectPath(ctx, x, y, w, h, radius) {
@@ -132,7 +143,7 @@ function wrapLines(ctx, text, maxWidth) {
 // and loud, long ones stay bold but step down, same idea as the text posts
 // in the feed.
 function fitTitle(ctx, text, maxWidth, maxLines) {
-  const sizes = [96, 88, 80, 72, 64, 58, 52, 46];
+  const sizes = [112, 104, 96, 88, 80, 72, 64, 58, 52];
   for (const size of sizes) {
     ctx.font = `800 ${size}px Inter, sans-serif`;
     const lines = wrapLines(ctx, text, maxWidth);
@@ -151,28 +162,72 @@ function fitTitle(ctx, text, maxWidth, maxLines) {
   return { size, lines };
 }
 
-function drawTagPill(ctx, text, x, y) {
+// The name catches the light — the glow is built up from repeated shadowed
+// passes, since canvas has no real text-glow primitive. Kept warm-white on
+// dark cards; on the white card a glow would just look like smudged ink, so
+// that one gets a soft drop shadow for weight instead.
+function drawGlowText(ctx, text, x, y, { glow, color, blur }) {
+  ctx.save();
+  if (glow) {
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = blur;
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawTagPill(ctx, text, x, y, theme) {
   ctx.font = "600 26px 'IBM Plex Mono', monospace";
   const label = String(text).toUpperCase();
   const textW = ctx.measureText(label).width;
-  const padX = 28;
-  const h = 56;
+  const padX = 26;
+  const h = 52;
   const w = textW + padX * 2;
-  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.fillStyle = theme.pillBg;
   roundRectPath(ctx, x, y, w, h, h / 2);
   ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.fillStyle = theme.pillInk;
   ctx.textBaseline = "middle";
   ctx.fillText(label, x + padX, y + h / 2 + 1);
   ctx.textBaseline = "alphabetic";
   return w;
 }
 
+function themeFor(background) {
+  if (background === "white") {
+    return {
+      ink: "#111111",
+      soft: "#6B6B68",
+      accent: "#B96A0C",
+      pillBg: "rgba(17,17,17,0.08)",
+      pillInk: "rgba(17,17,17,0.72)",
+      titleGlow: "rgba(17,17,17,0.18)",
+      titleBlur: 18
+    };
+  }
+  return {
+    ink: "#FFFFFF",
+    soft: "rgba(255,255,255,0.66)",
+    accent: "#F7BC69",
+    pillBg: "rgba(255,255,255,0.18)",
+    pillInk: "rgba(255,255,255,0.94)",
+    titleGlow: "rgba(255,246,228,0.55)",
+    titleBlur: 38
+  };
+}
+
 /**
  * Draws the poster and returns it as a Blob.
- * post: { title, budget, category, audience, image_url, username }
+ * post: { title, budget, category, image_url, username }
+ * background: "liquid" | "black" | "white"
  */
-async function buildShareCard(post) {
+async function buildShareCard(post, { background = "liquid" } = {}) {
   await ensureCardFonts();
 
   let img = null;
@@ -180,9 +235,11 @@ async function buildShareCard(post) {
     try {
       img = await loadCardImage(post.image_url);
     } catch (_) {
-      img = null;   // fall through to the text-only treatment
+      img = null;   // fall through to a plain backdrop
     }
   }
+  // "liquid" needs a photo to blur; without one it's just a flat colour.
+  if (background === "liquid" && !img) background = "white";
 
   const canvas = document.createElement("canvas");
   canvas.width = CARD_W;
@@ -190,83 +247,72 @@ async function buildShareCard(post) {
   const ctx = canvas.getContext("2d");
 
   const contentW = CARD_W - CARD_PAD * 2;
+  const theme = themeFor(background);
 
   // ---- backdrop ----
-  if (img) {
-    const { top, bottom } = sampleBackdrop(img);
-    const grad = ctx.createLinearGradient(0, 0, 0, CARD_H);
-    grad.addColorStop(0, top);
-    grad.addColorStop(1, bottom);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, CARD_W, CARD_H);
-
-    const glow = ctx.createRadialGradient(CARD_W / 2, CARD_H * 0.34, 60, CARD_W / 2, CARD_H * 0.34, CARD_W * 0.85);
-    glow.addColorStop(0, "rgba(255,255,255,0.10)");
-    glow.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = glow;
+  if (background === "liquid") {
+    drawLiquidBackdrop(ctx, img);
+  } else if (background === "black") {
+    ctx.fillStyle = "#08080A";
     ctx.fillRect(0, 0, CARD_W, CARD_H);
   } else {
-    // Text-only posts keep Esven's light, editorial look instead.
     ctx.fillStyle = "#FAFAF8";
     ctx.fillRect(0, 0, CARD_W, CARD_H);
   }
 
-  const onDark = Boolean(img);
-  const inkStrong = onDark ? "#FFFFFF" : "#111111";
-  const inkSoft = onDark ? "rgba(255,255,255,0.62)" : "#6B6B68";
-  const accent = onDark ? "#F5B463" : "#B96A0C";
-
-  // ---- measure the text block so the artwork can take whatever's left ----
-  const topLimit = 150;
-  const bottomLimit = CARD_H - 260;   // leaves room for the footer
+  // ---- measure the text so the photo can claim everything that's left ----
+  const topLimit = 104;
+  const footerTop = CARD_H - 150;
+  const bottomLimit = footerTop - 58;
   const maxTitleLines = img ? 3 : 6;
 
   const title = fitTitle(ctx, post.title || "Untitled", contentW, maxTitleLines);
-  const titleLineH = Math.round(title.size * 1.12);
+  const titleLineH = Math.round(title.size * 1.08);
   const titleH = title.lines.length * titleLineH;
 
   const hasTag = Boolean(post.category);
   const hasBudget = Boolean(post.budget);
   const hasAuthor = Boolean(post.username);
 
-  const GAP_ART = 68;
-  const GAP_TAG = 30;
-  const GAP_BUDGET = 26;
-  const GAP_AUTHOR = 20;
+  const GAP_ART = 46;
+  const GAP_TAG = 22;
+  const GAP_BUDGET = 16;
+  const GAP_AUTHOR = 12;
 
   let textH = titleH;
-  if (hasTag) textH += 56 + GAP_TAG;
-  if (hasBudget) textH += 56 + GAP_BUDGET;
-  if (hasAuthor) textH += 40 + GAP_AUTHOR;
+  if (hasTag) textH += 52 + GAP_TAG;
+  if (hasBudget) textH += 52 + GAP_BUDGET;
+  if (hasAuthor) textH += 36 + GAP_AUTHOR;
 
   let artW = 0, artH = 0;
   if (img) {
     const available = bottomLimit - topLimit - textH - GAP_ART;
-    const maxArtH = Math.max(380, Math.min(1040, available));
+    const maxArtH = Math.max(420, Math.min(1300, available));
     const scale = Math.min(contentW / img.naturalWidth, maxArtH / img.naturalHeight);
     artW = Math.round(img.naturalWidth * scale);
     artH = Math.round(img.naturalHeight * scale);
   }
 
-  // Sit slightly above centre rather than dead centre — the footer occupies
-  // the bottom of the card, so true centring leaves the block looking low.
+  // Photo first, text tucked underneath — bias the block upward so the
+  // spare space collects between the copy and the footer rather than
+  // above the photo.
   const blockH = (img ? artH + GAP_ART : 0) + textH;
-  let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * 0.42);
+  let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * 0.34);
 
   // ---- artwork ----
   if (img) {
     const artX = Math.round((CARD_W - artW) / 2);
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 60;
-    ctx.shadowOffsetY = 24;
-    roundRectPath(ctx, artX, y, artW, artH, 36);
+    ctx.shadowColor = background === "white" ? "rgba(17,17,17,0.22)" : "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 26;
+    roundRectPath(ctx, artX, y, artW, artH, 34);
     ctx.fillStyle = "#000";
     ctx.fill();
     ctx.restore();
 
     ctx.save();
-    roundRectPath(ctx, artX, y, artW, artH, 36);
+    roundRectPath(ctx, artX, y, artW, artH, 34);
     ctx.clip();
     ctx.drawImage(img, artX, y, artW, artH);
     ctx.restore();
@@ -276,49 +322,51 @@ async function buildShareCard(post) {
 
   // ---- tag ----
   if (hasTag) {
-    drawTagPill(ctx, post.category, CARD_PAD, y);
-    y += 56 + GAP_TAG;
+    drawTagPill(ctx, post.category, CARD_PAD, y, theme);
+    y += 52 + GAP_TAG;
   }
 
   // ---- title ----
-  ctx.fillStyle = inkStrong;
   ctx.font = `800 ${title.size}px Inter, sans-serif`;
   for (const line of title.lines) {
     y += titleLineH;
-    ctx.fillText(line, CARD_PAD, y - Math.round(titleLineH * 0.22));
+    drawGlowText(ctx, line, CARD_PAD, y - Math.round(titleLineH * 0.2), {
+      glow: theme.titleGlow,
+      blur: theme.titleBlur,
+      color: theme.ink
+    });
   }
 
   // ---- budget ----
   if (hasBudget) {
     y += GAP_BUDGET;
-    ctx.fillStyle = accent;
-    ctx.font = "700 44px Inter, sans-serif";
+    ctx.fillStyle = theme.accent;
+    ctx.font = "700 48px Inter, sans-serif";
     ctx.textBaseline = "top";
     ctx.fillText(post.budget, CARD_PAD, y);
     ctx.textBaseline = "alphabetic";
-    y += 56;
+    y += 52;
   }
 
   // ---- author ----
   if (hasAuthor) {
     y += GAP_AUTHOR;
-    ctx.fillStyle = inkSoft;
-    ctx.font = "500 30px Inter, sans-serif";
+    ctx.fillStyle = theme.soft;
+    ctx.font = "500 34px Inter, sans-serif";
     ctx.textBaseline = "top";
     ctx.fillText(`asked by ${post.username}`, CARD_PAD, y);
     ctx.textBaseline = "alphabetic";
   }
 
   // ---- footer ----
-  const footerY = CARD_H - 150;
-  ctx.fillStyle = inkStrong;
+  ctx.fillStyle = theme.ink;
   ctx.font = "600 56px 'Cormorant Garamond', serif";
-  ctx.fillText("Esven", CARD_PAD, footerY);
+  ctx.fillText("Esven", CARD_PAD, footerTop);
 
-  ctx.fillStyle = inkSoft;
+  ctx.fillStyle = theme.soft;
   ctx.font = "500 26px 'IBM Plex Mono', monospace";
   ctx.textBaseline = "top";
-  ctx.fillText("ask anyone, find anything", CARD_PAD, footerY + 22);
+  ctx.fillText(CARD_TAGLINE, CARD_PAD, footerTop + 22);
   ctx.textBaseline = "alphabetic";
 
   return new Promise(resolve => canvas.toBlob(resolve, CARD_TYPE, CARD_QUALITY));

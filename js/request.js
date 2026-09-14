@@ -166,16 +166,17 @@ function wireShareButton(post) {
     label.textContent = "Making poster...";
 
     try {
-      const blob = await buildShareCard({
+      const card = {
         title: post.title,
         budget: post.budget,
         category: post.category,
-        audience: post.audience,
         image_url: post.image_url,
         username: post.profiles?.username ?? null
-      });
+      };
+      const first = card.image_url ? "liquid" : "white";
+      const blob = await buildShareCard(card, { background: first });
       if (!blob) throw new Error("Couldn't render the poster.");
-      openSharePreview(post, blob);
+      openSharePreview(card, blob, first);
     } catch (err) {
       alert("Couldn't make the poster: " + err.message);
     } finally {
@@ -185,19 +186,36 @@ function wireShareButton(post) {
   });
 }
 
-function openSharePreview(post, blob) {
-  const url = URL.createObjectURL(blob);
+function openSharePreview(post, blob, background) {
+  let currentBlob = blob;
+  let currentUrl = URL.createObjectURL(blob);
+  let currentBg = background;
+  let rendering = false;
+
   const canShareFile = Boolean(
     navigator.canShare &&
     navigator.canShare({ files: [new File([blob], "card.jpg", { type: blob.type })] })
   );
+
+  // "liquid" blurs the post's own photo behind itself, so it's only offered
+  // when there is a photo.
+  const options = [
+    ...(post.image_url ? [{ id: "liquid", label: "Liquid" }] : []),
+    { id: "black", label: "Black" },
+    { id: "white", label: "White" }
+  ];
 
   const modal = document.createElement("div");
   modal.className = "share-modal open";
   modal.innerHTML = `
     <div class="share-modal-inner">
       <button class="panel-close" type="button" data-close>&times;</button>
-      <img class="share-preview" src="${url}" alt="Shareable poster for this post">
+      <div class="share-preview-shell">
+        <img class="share-preview" src="${currentUrl}" alt="Shareable poster for this post">
+      </div>
+      <div class="share-bg-row" role="group" aria-label="Poster background">
+        ${options.map(o => `<button type="button" class="share-bg-chip${o.id === currentBg ? " active" : ""}" data-bg="${o.id}">${o.label}</button>`).join("")}
+      </div>
       <div class="share-actions">
         ${canShareFile ? `<button type="button" class="btn" data-share>Share</button>` : ""}
         <button type="button" class="btn btn-ghost" data-save>Save image</button>
@@ -207,19 +225,48 @@ function openSharePreview(post, blob) {
         : "Save the image, then post it to your story."}</p>
     </div>`;
 
-  const close = () => { URL.revokeObjectURL(url); modal.remove(); };
+  const preview = modal.querySelector(".share-preview");
+  const shell = modal.querySelector(".share-preview-shell");
+
+  const close = () => { URL.revokeObjectURL(currentUrl); modal.remove(); };
   modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
   modal.querySelector("[data-close]").onclick = close;
 
+  modal.querySelectorAll(".share-bg-chip").forEach(chip => {
+    chip.onclick = async () => {
+      if (rendering || chip.dataset.bg === currentBg) return;
+      rendering = true;
+      shell.classList.add("is-rendering");
+      try {
+        // The photo is already cached from the first render, so this is a
+        // redraw rather than another download — fast enough to feel instant.
+        const next = await buildShareCard(post, { background: chip.dataset.bg });
+        if (!next) throw new Error("render failed");
+        URL.revokeObjectURL(currentUrl);
+        currentBlob = next;
+        currentUrl = URL.createObjectURL(next);
+        currentBg = chip.dataset.bg;
+        preview.src = currentUrl;
+        modal.querySelectorAll(".share-bg-chip").forEach(c =>
+          c.classList.toggle("active", c.dataset.bg === currentBg));
+      } catch (_) {
+        // Keep the poster that's already on screen.
+      } finally {
+        rendering = false;
+        shell.classList.remove("is-rendering");
+      }
+    };
+  });
+
   const shareBtn = modal.querySelector("[data-share]");
   if (shareBtn) shareBtn.onclick = async () => {
-    const result = await shareOrDownloadCard(post, blob);
+    const result = await shareOrDownloadCard(post, currentBlob);
     if (result === "shared") close();
   };
 
   modal.querySelector("[data-save]").onclick = () => {
     const a = document.createElement("a");
-    a.href = url;
+    a.href = currentUrl;
     a.download = shareCardFileName(post);
     document.body.appendChild(a);
     a.click();

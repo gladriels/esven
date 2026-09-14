@@ -675,14 +675,50 @@ textarea { resize: vertical; min-height: 70px; }
 
 /* The poster is a tall 9:16 image — cap it by height so the whole thing is
    visible in the dialog instead of overflowing on short screens. */
+.share-preview-shell {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 14px;
+  transition: opacity .18s ease;
+}
+.share-preview-shell.is-rendering { opacity: .45; }
+
 .share-preview {
   display: block;
   width: auto;
   max-width: 100%;
-  max-height: 62vh;
-  margin: 8px auto 16px;
+  max-height: 58vh;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(17,17,17,0.18);
+}
+
+.share-bg-row {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--pill);
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.share-bg-chip {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 9px 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.share-bg-chip.active {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(17,17,17,0.10);
 }
 
 .share-actions {
