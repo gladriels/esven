@@ -20,9 +20,6 @@ const CARD_FOOTER_H = 96;
 
 const SHARE_BACKGROUNDS = ["liquid", "black", "white"];
 
-// The feed-post size exists for promoting the site, so it's offered to
-// admins only.
-
 // Canvas can only use a font weight the browser has actually downloaded.
 // Google Fonts serves each weight as its own file and only fetches the ones
 // the page already renders, so ask for these explicitly before drawing —

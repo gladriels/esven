@@ -173,16 +173,11 @@ function wireShareButton(post) {
         image_url: post.image_url,
         username: post.profiles?.username ?? null
       };
-      // The 4:5 feed-post size is for promoting the site, so it's offered to
-      // admins only; everyone else shares a story.
-      const viewer = await getMyProfile();
-      const canPickFormat = viewer?.is_admin === true;
-
       const background = card.image_url ? "liquid" : "white";
       const format = "story";
       const blob = await buildShareCard(card, { background, format });
       if (!blob) throw new Error("Couldn't render the poster.");
-      openSharePreview(card, blob, { background, format, canPickFormat });
+      openSharePreview(card, blob, { background, format });
     } catch (err) {
       alert("Couldn't make the poster: " + err.message);
     } finally {
@@ -192,7 +187,7 @@ function wireShareButton(post) {
   });
 }
 
-function openSharePreview(post, blob, { background, format, canPickFormat }) {
+function openSharePreview(post, blob, { background, format }) {
   let currentBlob = blob;
   let currentUrl = URL.createObjectURL(blob);
   let currentBg = background;
@@ -226,11 +221,10 @@ function openSharePreview(post, blob, { background, format, canPickFormat }) {
       <div class="share-preview-shell">
         <img class="share-preview" src="${currentUrl}" alt="Shareable poster for this post">
       </div>
-      ${canPickFormat ? `
       <div class="share-seg-row" role="group" aria-label="Poster size">
         <button type="button" class="share-seg-chip${currentFormat === "story" ? " active" : ""}" data-format="story">Story 9:16</button>
         <button type="button" class="share-seg-chip${currentFormat === "post" ? " active" : ""}" data-format="post">Post 4:5</button>
-      </div>` : ""}
+      </div>
       ${canToggleTitle ? `
       <div class="share-seg-row" role="group" aria-label="Show the post name">
         <button type="button" class="share-seg-chip active" data-title="show">Name on</button>
