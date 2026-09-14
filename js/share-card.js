@@ -8,10 +8,9 @@
 
 const CARD_W = 1080;
 const CARD_H = 1920;          // 9:16 — Instagram/TikTok story shape
-const CARD_PAD = 56;
+const CARD_PAD = 40;
 const CARD_TYPE = "image/jpeg";
 const CARD_QUALITY = 0.94;
-const CARD_TAGLINE = "real people living in the real world";
 
 const SHARE_BACKGROUNDS = ["liquid", "black", "white"];
 
@@ -25,8 +24,7 @@ async function ensureCardFonts() {
     "800 104px Inter",
     "700 48px Inter",
     "500 34px Inter",
-    "600 26px 'IBM Plex Mono'",
-    "600 56px 'Cormorant Garamond'"
+    "600 26px 'IBM Plex Mono'"
   ];
   try {
     await Promise.all(needed.map(f => document.fonts.load(f)));
@@ -162,26 +160,6 @@ function fitTitle(ctx, text, maxWidth, maxLines) {
   return { size, lines };
 }
 
-// The name catches the light — the glow is built up from repeated shadowed
-// passes, since canvas has no real text-glow primitive. Kept warm-white on
-// dark cards; on the white card a glow would just look like smudged ink, so
-// that one gets a soft drop shadow for weight instead.
-function drawGlowText(ctx, text, x, y, { glow, color, blur }) {
-  ctx.save();
-  if (glow) {
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = blur;
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-    ctx.fillText(text, x, y);
-  }
-  ctx.shadowColor = "transparent";
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = color;
-  ctx.fillText(text, x, y);
-  ctx.restore();
-}
-
 function drawTagPill(ctx, text, x, y, theme) {
   ctx.font = "600 26px 'IBM Plex Mono', monospace";
   const label = String(text).toUpperCase();
@@ -204,21 +182,15 @@ function themeFor(background) {
     return {
       ink: "#111111",
       soft: "#6B6B68",
-      accent: "#B96A0C",
       pillBg: "rgba(17,17,17,0.08)",
-      pillInk: "rgba(17,17,17,0.72)",
-      titleGlow: "rgba(17,17,17,0.18)",
-      titleBlur: 18
+      pillInk: "rgba(17,17,17,0.72)"
     };
   }
   return {
     ink: "#FFFFFF",
     soft: "rgba(255,255,255,0.66)",
-    accent: "#F7BC69",
     pillBg: "rgba(255,255,255,0.18)",
-    pillInk: "rgba(255,255,255,0.94)",
-    titleGlow: "rgba(255,246,228,0.55)",
-    titleBlur: 38
+    pillInk: "rgba(255,255,255,0.94)"
   };
 }
 
@@ -260,10 +232,15 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
     ctx.fillRect(0, 0, CARD_W, CARD_H);
   }
 
-  // ---- measure the text so the photo can claim everything that's left ----
-  const topLimit = 104;
-  const footerTop = CARD_H - 150;
-  const bottomLimit = footerTop - 58;
+  // Price and username sit in the bottom-right corner, so everything else is
+  // measured against the top of that corner block rather than a footer.
+  const hasBudget = Boolean(post.budget);
+  const hasAuthor = Boolean(post.username);
+  const cornerH = (hasBudget ? 52 : 0) + (hasAuthor ? 34 : 0) + (hasBudget && hasAuthor ? 10 : 0);
+  const cornerTop = CARD_H - CARD_PAD - cornerH;
+
+  const topLimit = 72;
+  const bottomLimit = cornerH ? cornerTop - 34 : CARD_H - CARD_PAD;
   const maxTitleLines = img ? 3 : 6;
 
   const title = fitTitle(ctx, post.title || "Untitled", contentW, maxTitleLines);
@@ -271,33 +248,29 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
   const titleH = title.lines.length * titleLineH;
 
   const hasTag = Boolean(post.category);
-  const hasBudget = Boolean(post.budget);
-  const hasAuthor = Boolean(post.username);
 
-  const GAP_ART = 46;
-  const GAP_TAG = 22;
-  const GAP_BUDGET = 16;
-  const GAP_AUTHOR = 12;
+  const GAP_ART = 40;
+  const GAP_TAG = 20;
 
   let textH = titleH;
   if (hasTag) textH += 52 + GAP_TAG;
-  if (hasBudget) textH += 52 + GAP_BUDGET;
-  if (hasAuthor) textH += 36 + GAP_AUTHOR;
 
   let artW = 0, artH = 0;
   if (img) {
     const available = bottomLimit - topLimit - textH - GAP_ART;
-    const maxArtH = Math.max(420, Math.min(1300, available));
+    const maxArtH = Math.max(420, Math.min(1460, available));
     const scale = Math.min(contentW / img.naturalWidth, maxArtH / img.naturalHeight);
     artW = Math.round(img.naturalWidth * scale);
     artH = Math.round(img.naturalHeight * scale);
   }
 
-  // Photo first, text tucked underneath — bias the block upward so the
-  // spare space collects between the copy and the footer rather than
-  // above the photo.
+  // Photo first, title tucked underneath. Biased upward so any slack falls
+  // between the title and the corner block rather than above the photo. A
+  // text-only card has no photo to lead with, so it sits nearer the middle
+  // instead of stranding the title at the top of an empty page.
   const blockH = (img ? artH + GAP_ART : 0) + textH;
-  let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * 0.34);
+  const bias = img ? 0.3 : 0.42;
+  let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * bias);
 
   // ---- artwork ----
   if (img) {
@@ -327,46 +300,32 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
   }
 
   // ---- title ----
+  ctx.fillStyle = theme.ink;
   ctx.font = `800 ${title.size}px Inter, sans-serif`;
   for (const line of title.lines) {
     y += titleLineH;
-    drawGlowText(ctx, line, CARD_PAD, y - Math.round(titleLineH * 0.2), {
-      glow: theme.titleGlow,
-      blur: theme.titleBlur,
-      color: theme.ink
-    });
+    ctx.fillText(line, CARD_PAD, y - Math.round(titleLineH * 0.2));
   }
 
-  // ---- budget ----
+  // ---- price + who asked, bottom-right corner ----
+  const cornerX = CARD_W - CARD_PAD;
+  let cornerY = cornerTop;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+
   if (hasBudget) {
-    y += GAP_BUDGET;
-    ctx.fillStyle = theme.accent;
+    ctx.fillStyle = theme.ink;
     ctx.font = "700 48px Inter, sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(post.budget, CARD_PAD, y);
-    ctx.textBaseline = "alphabetic";
-    y += 52;
+    ctx.fillText(post.budget, cornerX, cornerY);
+    cornerY += 52 + (hasAuthor ? 10 : 0);
   }
-
-  // ---- author ----
   if (hasAuthor) {
-    y += GAP_AUTHOR;
     ctx.fillStyle = theme.soft;
     ctx.font = "500 34px Inter, sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(`asked by ${post.username}`, CARD_PAD, y);
-    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`asked by ${post.username}`, cornerX, cornerY);
   }
 
-  // ---- footer ----
-  ctx.fillStyle = theme.ink;
-  ctx.font = "600 56px 'Cormorant Garamond', serif";
-  ctx.fillText("Esven", CARD_PAD, footerTop);
-
-  ctx.fillStyle = theme.soft;
-  ctx.font = "500 26px 'IBM Plex Mono', monospace";
-  ctx.textBaseline = "top";
-  ctx.fillText(CARD_TAGLINE, CARD_PAD, footerTop + 22);
+  ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
   return new Promise(resolve => canvas.toBlob(resolve, CARD_TYPE, CARD_QUALITY));
