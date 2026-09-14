@@ -48,7 +48,7 @@ links and the Instagram bio link keep working.
 
 ## Verified locally in Cloudflare's runtime (wrangler 4.131, workerd 2026-09-11)
 
-- All five pages load at their new addresses; `/index.html?feed=1` redirects to `/?feed=1`.
+- All five pages load at their new addresses.
 - Server source, migrations, `node_modules` and local secrets files are not
   served — each returns the homepage, byte-for-byte.
 - All six functions return the same responses as the Vercel versions for bad
@@ -92,7 +92,7 @@ done from here.
 7. **Tell Claude the new address** to repoint the database's
    message-notification webhook (`public.notify_message_webhook()`), which
    currently calls the Vercel address.
-8. **Update the Instagram bio link** to `https://<your-address>/?feed=1`.
+8. **Update the Instagram bio link** to `https://<your-address>` (the plain address — the site no longer auto-scrolls to the feed, so there's nothing to append).
 9. ~~Category cover images~~ — done: the five covers were copied from Vercel's
    file storage into `images/`, so nothing on the site depends on Vercel.
 10. Once everything checks out, the Vercel project and the `api/` folder can go.
