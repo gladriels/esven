@@ -165,7 +165,7 @@ function renderTrending() {
         ${currentUserIsAdmin ? `<button type="button" class="staff-pick-toggle${r.is_staff_pick ? " is-picked" : ""}" data-id="${r.id}" title="${r.is_staff_pick ? "Remove staff pick" : "Mark as staff pick"}" aria-label="Toggle staff pick">${ICONS.star}</button>` : ""}
         <button type="button" class="like-btn${isLiked ? " is-liked" : ""}" data-id="${r.id}" aria-label="Like">${ICONS.heart}<span class="like-count">${likeCount ? likeCount : ""}</span></button>
       </div>
-      <p class="trending-title">${escapeHtml(r.title)}</p>
+      ${r.title ? `<p class="trending-title">${escapeHtml(r.title)}</p>` : ""}
       <p class="trending-sub">${r.budget ? escapeHtml(r.budget) : (r.category ?? "")}</p>
     </a>
   `;
@@ -310,7 +310,7 @@ function renderTicketMedia(r, likeButtonHtml) {
           ${likeButtonHtml}
           <div class="ticket-overlay">
             ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-            <h3 class="ticket-title">${escapeHtml(r.title)}</h3>
+            ${r.title ? `<h3 class="ticket-title">${escapeHtml(r.title)}</h3>` : ""}
           </div>
         </div>`;
   }
@@ -319,7 +319,7 @@ function renderTicketMedia(r, likeButtonHtml) {
           ${r.spotify_url ? `<span class="ticket-song-badge" title="Song attached" aria-label="Song attached">${ICONS.music}</span>` : ""}
           ${likeButtonHtml}
           ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-          <h3 class="ticket-text-title" style="font-size: ${titleFontSizeFor(r.title)}px">${escapeHtml(r.title)}</h3>
+          ${r.title ? `<h3 class="ticket-text-title" style="font-size: ${titleFontSizeFor(r.title)}px">${escapeHtml(r.title)}</h3>` : ""}
           ${r.description ? `<p class="ticket-text-desc">${escapeHtml(r.description)}</p>` : ""}
         </div>`;
 }
@@ -498,6 +498,14 @@ async function initNewRequestPanel() {
       const audience = document.getElementById("req-audience").value;
       const spotify_url = document.getElementById("req-spotify").value.trim();
       const imageFile = document.getElementById("req-image-file").files[0];
+
+      // The name is optional now, but a post needs *something* to show — a
+      // photo on its own is fine, a name on its own is fine, neither is an
+      // empty card.
+      if (!title && !imageFile) {
+        alert("Add a photo or a name to post.");
+        return;
+      }
 
       let image_url = "", image_width = null, image_height = null;
       try {

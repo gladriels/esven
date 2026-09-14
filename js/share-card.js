@@ -297,8 +297,10 @@ function themeFor(background) {
  * post: { title, budget, category, image_url, username }
  * background: "liquid" | "black" | "white"
  * format: "story" (9:16) | "post" (4:5, Instagram feed)
+ * showTitle: false leaves the name off. A post with no name has nothing to
+ *   show either way — names are optional when a photo is attached.
  */
-async function buildShareCard(post, { background = "liquid", format = "story" } = {}) {
+async function buildShareCard(post, { background = "liquid", format = "story", showTitle = true } = {}) {
   await ensureCardFonts();
 
   const { w: W, h: H } = CARD_FORMATS[format] || CARD_FORMATS.story;
@@ -340,6 +342,8 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
   const footerBottom = H - CARD_PAD;
   const bottomLimit = H - CARD_PAD - CARD_FOOTER_H - 34;
 
+  const titleText = showTitle ? String(post.title || "").trim() : "";
+  const hasTitle = Boolean(titleText);
   const hasTag = Boolean(post.category);
   const hasBudget = Boolean(post.budget);
   const hasAuthor = Boolean(post.username);
@@ -349,7 +353,7 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
   // of that and the length-based cap is smaller wins.
   const maxTitleSize = Math.min(
     format === "post" ? 88 : 112,
-    titleCapForLength(post.title)
+    titleCapForLength(titleText)
   );
   const GAP_TAG = 20;
   const OVERLAY_PAD = 44;
@@ -374,9 +378,11 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
     // overlay would take up too much of the photo it's meant to sit on.
     const titleMaxW = artW - OVERLAY_PAD * 2;
     let sizeCap = maxTitleSize;
-    let title, titleLineH, titleH, overlayH;
-    while (true) {
-      title = fitTitle(ctx, post.title || "Untitled", titleMaxW, 3, sizeCap);
+    let title = { size: maxTitleSize, lines: [] };
+    let titleLineH = 0, titleH = 0;
+    let overlayH = hasTag ? 52 : 0;
+    while (hasTitle) {
+      title = fitTitle(ctx, titleText, titleMaxW, 3, sizeCap);
       titleLineH = Math.round(title.size * 1.08);
       titleH = title.lines.length * titleLineH;
       overlayH = titleH + (hasTag ? 52 + GAP_TAG : 0);
@@ -400,18 +406,23 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
     ctx.clip();
     ctx.drawImage(img, artX, artY, artW, artH);
 
-    const scrimH = Math.min(artH, overlayH + OVERLAY_PAD * 2 + 140);
-    const scrimTop = artY + artH - scrimH;
-    const scrim = ctx.createLinearGradient(0, scrimTop, 0, artY + artH);
-    scrim.addColorStop(0, "rgba(0,0,0,0)");
-    scrim.addColorStop(0.55, "rgba(0,0,0,0.46)");
-    scrim.addColorStop(1, "rgba(0,0,0,0.84)");
-    ctx.fillStyle = scrim;
-    ctx.fillRect(artX, scrimTop, artW, scrimH);
+    // With no name and no tag there's nothing to protect, so the photo is
+    // left clean instead of getting a dark band along its bottom.
+    if (overlayH) {
+      const scrimH = Math.min(artH, overlayH + OVERLAY_PAD * 2 + 140);
+      const scrimTop = artY + artH - scrimH;
+      const scrim = ctx.createLinearGradient(0, scrimTop, 0, artY + artH);
+      scrim.addColorStop(0, "rgba(0,0,0,0)");
+      scrim.addColorStop(0.55, "rgba(0,0,0,0.46)");
+      scrim.addColorStop(1, "rgba(0,0,0,0.84)");
+      ctx.fillStyle = scrim;
+      ctx.fillRect(artX, scrimTop, artW, scrimH);
+    }
 
     let ty = artY + artH - OVERLAY_PAD - titleH;
     if (hasTag) {
-      drawTagPill(ctx, post.category, artX + OVERLAY_PAD, ty - GAP_TAG - 52, photoTheme);
+      const tagY = hasTitle ? ty - GAP_TAG - 52 : artY + artH - OVERLAY_PAD - 52;
+      drawTagPill(ctx, post.category, artX + OVERLAY_PAD, tagY, photoTheme);
     }
     ctx.fillStyle = "#FFFFFF";
     ctx.font = `800 ${title.size}px Inter, sans-serif`;
@@ -423,10 +434,10 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
   } else {
     // No photo to sit on, so the name keeps the card's own theme and sits
     // near the middle rather than stranded at the top of an empty page.
-    const title = fitTitle(ctx, post.title || "Untitled", contentW, 6, maxTitleSize);
+    const title = hasTitle ? fitTitle(ctx, titleText, contentW, 6, maxTitleSize) : { size: maxTitleSize, lines: [] };
     const titleLineH = Math.round(title.size * 1.08);
     const titleH = title.lines.length * titleLineH;
-    const blockH = titleH + (hasTag ? 52 + GAP_TAG : 0);
+    const blockH = titleH + (hasTag ? 52 + (hasTitle ? GAP_TAG : 0) : 0);
     let y = Math.max(topLimit, topLimit + (bottomLimit - topLimit - blockH) * 0.42);
 
     if (hasTag) {

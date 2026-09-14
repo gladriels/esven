@@ -100,7 +100,7 @@ async function loadRequest() {
   detail.innerHTML = `
     ${r.image_url ? `<div class="detail-image"><img src="${r.image_url}" alt=""${detailDims} decoding="async"><button type="button" class="like-btn${isLiked ? " is-liked" : ""}" id="detail-like-btn" aria-label="Like">${ICONS.heart}<span class="like-count">${likedBy.size ? likedBy.size : ""}</span></button></div>` : ""}
     ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-    <h1>${escapeHtml(r.title)}</h1>
+    ${r.title ? `<h1>${escapeHtml(r.title)}</h1>` : ""}
     <p>${escapeHtml(r.description ?? "")}</p>
     ${embed ? `<div class="spotify-player-shell" data-track-player><div id="request-spotify-player"></div><button class="spotify-play-hint" type="button" data-play-spotify>Tap to play on Spotify</button><iframe class="spotify-embed-fallback" src="${embed}" width="100%" height="152" frameborder="0" allow="encrypted-media"></iframe></div>` : ""}
     <div class="request-meta">
@@ -197,7 +197,13 @@ function openSharePreview(post, blob, { background, format, canPickFormat }) {
   let currentUrl = URL.createObjectURL(blob);
   let currentBg = background;
   let currentFormat = format;
+  let currentShowTitle = true;
   let rendering = false;
+
+  // Hiding the name only makes sense when there's a photo to carry the
+  // poster — on a text-only post the name *is* the poster — and when the
+  // post has a name to hide in the first place.
+  const canToggleTitle = Boolean(post.image_url && String(post.title || "").trim());
 
   const canShareFile = Boolean(
     navigator.canShare &&
@@ -225,6 +231,11 @@ function openSharePreview(post, blob, { background, format, canPickFormat }) {
         <button type="button" class="share-seg-chip${currentFormat === "story" ? " active" : ""}" data-format="story">Story 9:16</button>
         <button type="button" class="share-seg-chip${currentFormat === "post" ? " active" : ""}" data-format="post">Post 4:5</button>
       </div>` : ""}
+      ${canToggleTitle ? `
+      <div class="share-seg-row" role="group" aria-label="Show the post name">
+        <button type="button" class="share-seg-chip active" data-title="show">Name on</button>
+        <button type="button" class="share-seg-chip" data-title="hide">Name off</button>
+      </div>` : ""}
       <div class="share-seg-row" role="group" aria-label="Poster background">
         ${backgrounds.map(o => `<button type="button" class="share-seg-chip${o.id === currentBg ? " active" : ""}" data-bg="${o.id}">${o.label}</button>`).join("")}
       </div>
@@ -246,23 +257,26 @@ function openSharePreview(post, blob, { background, format, canPickFormat }) {
 
   // Both pickers funnel through here. The photo is already cached from the
   // first render, so a swap is a redraw rather than another download.
-  const rerender = async (nextBg, nextFormat) => {
+  const rerender = async (nextBg, nextFormat, nextShowTitle = currentShowTitle) => {
     if (rendering) return;
     rendering = true;
     shell.classList.add("is-rendering");
     try {
-      const next = await buildShareCard(post, { background: nextBg, format: nextFormat });
+      const next = await buildShareCard(post, { background: nextBg, format: nextFormat, showTitle: nextShowTitle });
       if (!next) throw new Error("render failed");
       URL.revokeObjectURL(currentUrl);
       currentBlob = next;
       currentUrl = URL.createObjectURL(next);
       currentBg = nextBg;
       currentFormat = nextFormat;
+      currentShowTitle = nextShowTitle;
       preview.src = currentUrl;
       modal.querySelectorAll("[data-bg]").forEach(c =>
         c.classList.toggle("active", c.dataset.bg === currentBg));
       modal.querySelectorAll("[data-format]").forEach(c =>
         c.classList.toggle("active", c.dataset.format === currentFormat));
+      modal.querySelectorAll("[data-title]").forEach(c =>
+        c.classList.toggle("active", (c.dataset.title === "show") === currentShowTitle));
     } catch (_) {
       // Keep the poster that's already on screen.
     } finally {
@@ -274,6 +288,12 @@ function openSharePreview(post, blob, { background, format, canPickFormat }) {
   modal.querySelectorAll("[data-bg]").forEach(chip => {
     chip.onclick = () => {
       if (chip.dataset.bg !== currentBg) rerender(chip.dataset.bg, currentFormat);
+    };
+  });
+  modal.querySelectorAll("[data-title]").forEach(chip => {
+    chip.onclick = () => {
+      const show = chip.dataset.title === "show";
+      if (show !== currentShowTitle) rerender(currentBg, currentFormat, show);
     };
   });
   modal.querySelectorAll("[data-format]").forEach(chip => {

@@ -71,7 +71,7 @@ function renderReel() {
     <section class="reel-section" data-id="${r.id}" style="${r.image_url ? `background-image:url('${r.image_url}')` : ""}">
       <div class="reel-overlay">
         ${r.category ? `<span class="ticket-cat">${r.category}</span>` : ""}
-        <h2 class="reel-item-title">${escapeHtml(r.title)}</h2>
+        ${r.title ? `<h2 class="reel-item-title">${escapeHtml(r.title)}</h2>` : ""}
         <p class="reel-item-desc">${escapeHtml(r.description ?? "")}</p>
         <div class="reel-item-footer">
           <span>${r.profiles?.username ?? "someone"}</span>

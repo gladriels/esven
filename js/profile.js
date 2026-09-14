@@ -175,7 +175,7 @@ async function loadProfile() {
     recContainer.innerHTML = recs.map(rec => `
       <a href="request.html#${rec.request_id}" class="profile-rec-item">
         <p class="profile-rec-note">${escapeHtml(rec.note)}</p>
-        <span class="profile-rec-for">on: ${escapeHtml(rec.requests?.title ?? "a request")}</span>
+        <span class="profile-rec-for">on: ${escapeHtml(rec.requests?.title || "a request")}</span>
       </a>
     `).join("");
   }
@@ -236,7 +236,7 @@ async function loadLikedPosts(profile, isOwnProfile) {
       <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
       <span class="ig-grid-item-overlay">
         ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
-        <span class="ig-grid-item-name">${escapeHtml(r.title)}</span>
+        ${r.title ? `<span class="ig-grid-item-name">${escapeHtml(r.title)}</span>` : ""}
       </span>
     </a>`).join("");
 }
@@ -283,7 +283,7 @@ function renderProfileGrid() {
       <span class="ig-grid-item-fallback">${escapeHtml(r.title)}</span>
       <span class="ig-grid-item-overlay">
         ${r.category ? `<span class="ig-grid-item-tag">${escapeHtml(r.category)}</span>` : ""}
-        <span class="ig-grid-item-name">${escapeHtml(r.title)}</span>
+        ${r.title ? `<span class="ig-grid-item-name">${escapeHtml(r.title)}</span>` : ""}
       </span>
     </a>`).join("");
 }

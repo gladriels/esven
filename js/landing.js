@@ -43,7 +43,7 @@ async function loadSolved() {
       ${r.image_url
         ? `<img src="${r.image_url}" alt="" class="solved-thumb" loading="lazy" decoding="async">`
         : `<div class="solved-thumb solved-thumb-empty"></div>`}
-      <p class="solved-title">${escapeHtml(r.title)}</p>
+      ${r.title ? `<p class="solved-title">${escapeHtml(r.title)}</p>` : ""}
       <p class="solved-sub">${r.profiles?.username ?? "someone"}</p>
     </a>
   `).join("");
@@ -88,7 +88,7 @@ function paintShopGrid() {
         <span class="shop-heart">&#9825;</span>
         <span class="shop-overlay"><span class="shop-cta">Recommend</span></span>
       </div>
-      <p class="shop-title">${escapeHtml(r.title)}</p>
+      ${r.title ? `<p class="shop-title">${escapeHtml(r.title)}</p>` : ""}
       <p class="shop-price">${escapeHtml(r.budget || r.category || "")}</p>
     </a>
   `).join("");
