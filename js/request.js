@@ -173,10 +173,16 @@ function wireShareButton(post) {
         image_url: post.image_url,
         username: post.profiles?.username ?? null
       };
-      const first = card.image_url ? "liquid" : "white";
-      const blob = await buildShareCard(card, { background: first });
+      // The 4:5 feed-post size is for promoting the site, so only the
+      // promoting account is offered the choice; everyone else shares a story.
+      const viewer = await getMyProfile();
+      const canPickFormat = viewer?.username === POSTER_FORMAT_ACCOUNT;
+
+      const background = card.image_url ? "liquid" : "white";
+      const format = "story";
+      const blob = await buildShareCard(card, { background, format });
       if (!blob) throw new Error("Couldn't render the poster.");
-      openSharePreview(card, blob, first);
+      openSharePreview(card, blob, { background, format, canPickFormat });
     } catch (err) {
       alert("Couldn't make the poster: " + err.message);
     } finally {
@@ -186,10 +192,11 @@ function wireShareButton(post) {
   });
 }
 
-function openSharePreview(post, blob, background) {
+function openSharePreview(post, blob, { background, format, canPickFormat }) {
   let currentBlob = blob;
   let currentUrl = URL.createObjectURL(blob);
   let currentBg = background;
+  let currentFormat = format;
   let rendering = false;
 
   const canShareFile = Boolean(
@@ -199,7 +206,7 @@ function openSharePreview(post, blob, background) {
 
   // "liquid" blurs the post's own photo behind itself, so it's only offered
   // when there is a photo.
-  const options = [
+  const backgrounds = [
     ...(post.image_url ? [{ id: "liquid", label: "Liquid" }] : []),
     { id: "black", label: "Black" },
     { id: "white", label: "White" }
@@ -213,8 +220,13 @@ function openSharePreview(post, blob, background) {
       <div class="share-preview-shell">
         <img class="share-preview" src="${currentUrl}" alt="Shareable poster for this post">
       </div>
-      <div class="share-bg-row" role="group" aria-label="Poster background">
-        ${options.map(o => `<button type="button" class="share-bg-chip${o.id === currentBg ? " active" : ""}" data-bg="${o.id}">${o.label}</button>`).join("")}
+      ${canPickFormat ? `
+      <div class="share-seg-row" role="group" aria-label="Poster size">
+        <button type="button" class="share-seg-chip${currentFormat === "story" ? " active" : ""}" data-format="story">Story 9:16</button>
+        <button type="button" class="share-seg-chip${currentFormat === "post" ? " active" : ""}" data-format="post">Post 4:5</button>
+      </div>` : ""}
+      <div class="share-seg-row" role="group" aria-label="Poster background">
+        ${backgrounds.map(o => `<button type="button" class="share-seg-chip${o.id === currentBg ? " active" : ""}" data-bg="${o.id}">${o.label}</button>`).join("")}
       </div>
       <div class="share-actions">
         ${canShareFile ? `<button type="button" class="btn" data-share>Share</button>` : ""}
@@ -232,42 +244,54 @@ function openSharePreview(post, blob, background) {
   modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
   modal.querySelector("[data-close]").onclick = close;
 
-  modal.querySelectorAll(".share-bg-chip").forEach(chip => {
-    chip.onclick = async () => {
-      if (rendering || chip.dataset.bg === currentBg) return;
-      rendering = true;
-      shell.classList.add("is-rendering");
-      try {
-        // The photo is already cached from the first render, so this is a
-        // redraw rather than another download — fast enough to feel instant.
-        const next = await buildShareCard(post, { background: chip.dataset.bg });
-        if (!next) throw new Error("render failed");
-        URL.revokeObjectURL(currentUrl);
-        currentBlob = next;
-        currentUrl = URL.createObjectURL(next);
-        currentBg = chip.dataset.bg;
-        preview.src = currentUrl;
-        modal.querySelectorAll(".share-bg-chip").forEach(c =>
-          c.classList.toggle("active", c.dataset.bg === currentBg));
-      } catch (_) {
-        // Keep the poster that's already on screen.
-      } finally {
-        rendering = false;
-        shell.classList.remove("is-rendering");
-      }
+  // Both pickers funnel through here. The photo is already cached from the
+  // first render, so a swap is a redraw rather than another download.
+  const rerender = async (nextBg, nextFormat) => {
+    if (rendering) return;
+    rendering = true;
+    shell.classList.add("is-rendering");
+    try {
+      const next = await buildShareCard(post, { background: nextBg, format: nextFormat });
+      if (!next) throw new Error("render failed");
+      URL.revokeObjectURL(currentUrl);
+      currentBlob = next;
+      currentUrl = URL.createObjectURL(next);
+      currentBg = nextBg;
+      currentFormat = nextFormat;
+      preview.src = currentUrl;
+      modal.querySelectorAll("[data-bg]").forEach(c =>
+        c.classList.toggle("active", c.dataset.bg === currentBg));
+      modal.querySelectorAll("[data-format]").forEach(c =>
+        c.classList.toggle("active", c.dataset.format === currentFormat));
+    } catch (_) {
+      // Keep the poster that's already on screen.
+    } finally {
+      rendering = false;
+      shell.classList.remove("is-rendering");
+    }
+  };
+
+  modal.querySelectorAll("[data-bg]").forEach(chip => {
+    chip.onclick = () => {
+      if (chip.dataset.bg !== currentBg) rerender(chip.dataset.bg, currentFormat);
+    };
+  });
+  modal.querySelectorAll("[data-format]").forEach(chip => {
+    chip.onclick = () => {
+      if (chip.dataset.format !== currentFormat) rerender(currentBg, chip.dataset.format);
     };
   });
 
   const shareBtn = modal.querySelector("[data-share]");
   if (shareBtn) shareBtn.onclick = async () => {
-    const result = await shareOrDownloadCard(post, currentBlob);
+    const result = await shareOrDownloadCard(post, currentBlob, currentFormat);
     if (result === "shared") close();
   };
 
   modal.querySelector("[data-save]").onclick = () => {
     const a = document.createElement("a");
     a.href = currentUrl;
-    a.download = shareCardFileName(post);
+    a.download = shareCardFileName(post, currentFormat);
     document.body.appendChild(a);
     a.click();
     a.remove();

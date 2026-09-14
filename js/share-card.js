@@ -4,15 +4,26 @@
 // share sheet via the Web Share API, with a download fallback on desktop.
 //
 // Three backdrops: the post's own photo blown up and blurred behind itself,
-// solid black, or Esven's off-white.
+// solid black, or the light editorial treatment.
 
-const CARD_W = 1080;
-const CARD_H = 1920;          // 9:16 — Instagram/TikTok story shape
+const CARD_FORMATS = {
+  story: { w: 1080, h: 1920, label: "Story" },   // 9:16, full-screen story
+  post:  { w: 1080, h: 1350, label: "Post" }     // 4:5, tallest the IG feed allows
+};
+
 const CARD_PAD = 40;
 const CARD_TYPE = "image/jpeg";
 const CARD_QUALITY = 0.94;
+const CARD_BRAND = "Glares";
+const CARD_SLOGAN = "Taste, on request";
+const CARD_FOOTER_H = 96;
 
 const SHARE_BACKGROUNDS = ["liquid", "black", "white"];
+
+// The feed-post size exists for promoting the site, so it's offered to this
+// account only. Gated on the username rather than the is_admin flag because
+// there is more than one admin.
+const POSTER_FORMAT_ACCOUNT = "elvanmire";
 
 // Canvas can only use a font weight the browser has actually downloaded.
 // Google Fonts serves each weight as its own file and only fetches the ones
@@ -24,7 +35,8 @@ async function ensureCardFonts() {
     "800 104px Inter",
     "700 48px Inter",
     "500 34px Inter",
-    "600 26px 'IBM Plex Mono'"
+    "600 26px 'IBM Plex Mono'",
+    "600 56px 'Cormorant Garamond'"
   ];
   try {
     await Promise.all(needed.map(f => document.fonts.load(f)));
@@ -34,8 +46,8 @@ async function ensureCardFonts() {
   }
 }
 
-// Keyed by URL so switching backgrounds re-renders instantly instead of
-// re-downloading a multi-megabyte photo each time.
+// Keyed by URL so switching backgrounds or formats re-renders instantly
+// instead of re-downloading a multi-megabyte photo each time.
 const cardImageCache = new Map();
 
 function loadCardImage(src) {
@@ -78,10 +90,10 @@ function coverCrop(img, targetRatio, zoom) {
 // blowing it back up — the browser's own bilinear smoothing does the work.
 // ctx.filter would be tidier but Safari only got it in 17.4, and this needs
 // to work on whatever phone someone opens Instagram with.
-function drawLiquidBackdrop(ctx, img) {
+function drawLiquidBackdrop(ctx, img, W, H) {
   const small = document.createElement("canvas");
   small.width = 42;
-  small.height = 74;
+  small.height = Math.max(1, Math.round(42 * (H / W)));
   const sctx = small.getContext("2d");
   const { sx, sy, sw, sh } = coverCrop(img, small.width / small.height, 1.6);
   sctx.drawImage(img, sx, sy, sw, sh, 0, 0, small.width, small.height);
@@ -90,17 +102,17 @@ function drawLiquidBackdrop(ctx, img) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   try { ctx.filter = "saturate(1.45)"; } catch (_) {}
-  ctx.drawImage(small, 0, 0, CARD_W, CARD_H);
+  ctx.drawImage(small, 0, 0, W, H);
   ctx.restore();
 
   // Scrim: without it, white type lands on whatever brightness the photo
   // happened to have there and becomes unreadable.
-  const scrim = ctx.createLinearGradient(0, 0, 0, CARD_H);
+  const scrim = ctx.createLinearGradient(0, 0, 0, H);
   scrim.addColorStop(0, "rgba(6,6,8,0.52)");
   scrim.addColorStop(0.45, "rgba(6,6,8,0.40)");
   scrim.addColorStop(1, "rgba(6,6,8,0.82)");
   ctx.fillStyle = scrim;
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  ctx.fillRect(0, 0, W, H);
 }
 
 function roundRectPath(ctx, x, y, w, h, radius) {
@@ -138,16 +150,19 @@ function wrapLines(ctx, text, maxWidth) {
 }
 
 // Shrink the title until it fits the line budget — short names come out big
-// and loud, long ones stay bold but step down, same idea as the text posts
-// in the feed.
-function fitTitle(ctx, text, maxWidth, maxLines) {
-  const sizes = [112, 104, 96, 88, 80, 72, 64, 58, 52];
-  for (const size of sizes) {
+// and loud, long ones keep stepping down rather than getting cut off. The
+// ramp runs well below the sizes a short name would ever use, so a genuinely
+// long name ends up small instead of truncated.
+const TITLE_SIZES = [112, 104, 96, 88, 80, 72, 64, 56, 48, 42, 36, 32, 28];
+
+function fitTitle(ctx, text, maxWidth, maxLines, maxSize) {
+  const ramp = TITLE_SIZES.filter(s => s <= (maxSize || TITLE_SIZES[0]));
+  for (const size of ramp) {
     ctx.font = `800 ${size}px Inter, sans-serif`;
     const lines = wrapLines(ctx, text, maxWidth);
     if (lines.length <= maxLines) return { size, lines };
   }
-  const size = sizes[sizes.length - 1];
+  const size = ramp[ramp.length - 1];
   ctx.font = `800 ${size}px Inter, sans-serif`;
   const lines = wrapLines(ctx, text, maxWidth).slice(0, maxLines);
   if (lines.length) {
@@ -198,9 +213,12 @@ function themeFor(background) {
  * Draws the poster and returns it as a Blob.
  * post: { title, budget, category, image_url, username }
  * background: "liquid" | "black" | "white"
+ * format: "story" (9:16) | "post" (4:5, Instagram feed)
  */
-async function buildShareCard(post, { background = "liquid" } = {}) {
+async function buildShareCard(post, { background = "liquid", format = "story" } = {}) {
   await ensureCardFonts();
+
+  const { w: W, h: H } = CARD_FORMATS[format] || CARD_FORMATS.story;
 
   let img = null;
   if (post.image_url) {
@@ -214,40 +232,43 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
   if (background === "liquid" && !img) background = "white";
 
   const canvas = document.createElement("canvas");
-  canvas.width = CARD_W;
-  canvas.height = CARD_H;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  const contentW = CARD_W - CARD_PAD * 2;
+  const contentW = W - CARD_PAD * 2;
   const theme = themeFor(background);
 
   // ---- backdrop ----
   if (background === "liquid") {
-    drawLiquidBackdrop(ctx, img);
+    drawLiquidBackdrop(ctx, img, W, H);
   } else if (background === "black") {
     ctx.fillStyle = "#08080A";
-    ctx.fillRect(0, 0, CARD_W, CARD_H);
+    ctx.fillRect(0, 0, W, H);
   } else {
     ctx.fillStyle = "#FAFAF8";
-    ctx.fillRect(0, 0, CARD_W, CARD_H);
+    ctx.fillRect(0, 0, W, H);
   }
 
-  // Price and username sit in the bottom-right corner, so everything else is
-  // measured against the top of that corner block rather than a footer.
-  const hasBudget = Boolean(post.budget);
-  const hasAuthor = Boolean(post.username);
-  const cornerH = (hasBudget ? 52 : 0) + (hasAuthor ? 34 : 0) + (hasBudget && hasAuthor ? 10 : 0);
-  const cornerTop = CARD_H - CARD_PAD - cornerH;
+  // ---- layout ----
+  // The footer row is fixed height: brand and slogan on the left, price and
+  // who asked on the right, both sitting on the same baseline.
+  const topLimit = Math.round(H * 0.037);
+  const footerBottom = H - CARD_PAD;
+  const bottomLimit = H - CARD_PAD - CARD_FOOTER_H - 34;
 
-  const topLimit = 72;
-  const bottomLimit = cornerH ? cornerTop - 34 : CARD_H - CARD_PAD;
   const maxTitleLines = img ? 3 : 6;
+  // The 4:5 card has far less height to spend, so it starts the title ramp
+  // lower — otherwise a big title would squeeze the photo down to nothing.
+  const maxTitleSize = format === "post" ? 88 : 112;
 
-  const title = fitTitle(ctx, post.title || "Untitled", contentW, maxTitleLines);
+  const title = fitTitle(ctx, post.title || "Untitled", contentW, maxTitleLines, maxTitleSize);
   const titleLineH = Math.round(title.size * 1.08);
   const titleH = title.lines.length * titleLineH;
 
   const hasTag = Boolean(post.category);
+  const hasBudget = Boolean(post.budget);
+  const hasAuthor = Boolean(post.username);
 
   const GAP_ART = 40;
   const GAP_TAG = 20;
@@ -258,14 +279,14 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
   let artW = 0, artH = 0;
   if (img) {
     const available = bottomLimit - topLimit - textH - GAP_ART;
-    const maxArtH = Math.max(420, Math.min(1460, available));
+    const maxArtH = Math.max(300, Math.min(Math.round(H * 0.76), available));
     const scale = Math.min(contentW / img.naturalWidth, maxArtH / img.naturalHeight);
     artW = Math.round(img.naturalWidth * scale);
     artH = Math.round(img.naturalHeight * scale);
   }
 
   // Photo first, title tucked underneath. Biased upward so any slack falls
-  // between the title and the corner block rather than above the photo. A
+  // between the title and the footer rather than above the photo. A
   // text-only card has no photo to lead with, so it sits nearer the middle
   // instead of stranding the title at the top of an empty page.
   const blockH = (img ? artH + GAP_ART : 0) + textH;
@@ -274,7 +295,7 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
 
   // ---- artwork ----
   if (img) {
-    const artX = Math.round((CARD_W - artW) / 2);
+    const artX = Math.round((W - artW) / 2);
     ctx.save();
     ctx.shadowColor = background === "white" ? "rgba(17,17,17,0.22)" : "rgba(0,0,0,0.55)";
     ctx.shadowBlur = 70;
@@ -307,48 +328,51 @@ async function buildShareCard(post, { background = "liquid" } = {}) {
     ctx.fillText(line, CARD_PAD, y - Math.round(titleLineH * 0.2));
   }
 
-  // ---- price + who asked, bottom-right corner ----
-  const cornerX = CARD_W - CARD_PAD;
-  let cornerY = cornerTop;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "top";
+  // ---- footer left: brand + slogan ----
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = theme.soft;
+  ctx.font = "500 26px 'IBM Plex Mono', monospace";
+  ctx.fillText(CARD_SLOGAN, CARD_PAD, footerBottom);
+  ctx.fillStyle = theme.ink;
+  ctx.font = "600 56px 'Cormorant Garamond', serif";
+  ctx.fillText(CARD_BRAND, CARD_PAD, footerBottom - 38);
 
-  if (hasBudget) {
-    ctx.fillStyle = theme.ink;
-    ctx.font = "700 48px Inter, sans-serif";
-    ctx.fillText(post.budget, cornerX, cornerY);
-    cornerY += 52 + (hasAuthor ? 10 : 0);
-  }
+  // ---- footer right: price + who asked ----
+  ctx.textAlign = "right";
   if (hasAuthor) {
     ctx.fillStyle = theme.soft;
     ctx.font = "500 34px Inter, sans-serif";
-    ctx.fillText(`asked by ${post.username}`, cornerX, cornerY);
+    ctx.fillText(`asked by ${post.username}`, W - CARD_PAD, footerBottom);
   }
-
+  if (hasBudget) {
+    ctx.fillStyle = theme.ink;
+    ctx.font = "700 48px Inter, sans-serif";
+    ctx.fillText(post.budget, W - CARD_PAD, footerBottom - (hasAuthor ? 46 : 0));
+  }
   ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
 
   return new Promise(resolve => canvas.toBlob(resolve, CARD_TYPE, CARD_QUALITY));
 }
 
-function shareCardFileName(post) {
-  const base = String(post.title || "esven-post")
+function shareCardFileName(post, format = "story") {
+  const base = String(post.title || "glares-post")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 40) || "esven-post";
-  return `esven-${base}.jpg`;
+    .slice(0, 40) || "glares-post";
+  return `glares-${base}-${format}.jpg`;
 }
 
 // Opens the native share sheet when the browser supports sharing files
 // (every current mobile browser does — that's the Instagram-story path).
 // Desktop browsers mostly don't, so they get the image to save instead.
-async function shareOrDownloadCard(post, blob) {
-  const file = new File([blob], shareCardFileName(post), { type: CARD_TYPE });
+async function shareOrDownloadCard(post, blob, format = "story") {
+  const file = new File([blob], shareCardFileName(post, format), { type: CARD_TYPE });
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: post.title || "Esven" });
+      await navigator.share({ files: [file], title: post.title || CARD_BRAND });
       return "shared";
     } catch (err) {
       if (err && err.name === "AbortError") return "cancelled";

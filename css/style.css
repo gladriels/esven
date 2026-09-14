@@ -693,15 +693,18 @@ textarea { resize: vertical; min-height: 70px; }
   box-shadow: 0 10px 30px rgba(17,17,17,0.18);
 }
 
-.share-bg-row {
+/* Segmented controls in the share dialog — one row for size (admin only),
+   one for backdrop. */
+.share-seg-row {
   display: flex;
   gap: 6px;
   padding: 4px;
   background: var(--pill);
   border-radius: 999px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
-.share-bg-chip {
+.share-seg-row:last-of-type { margin-bottom: 14px; }
+.share-seg-chip {
   flex: 1;
   border: none;
   background: transparent;
@@ -713,8 +716,9 @@ textarea { resize: vertical; min-height: 70px; }
   text-transform: uppercase;
   color: var(--ink-soft);
   cursor: pointer;
+  white-space: nowrap;
 }
-.share-bg-chip.active {
+.share-seg-chip.active {
   background: var(--card);
   color: var(--ink);
   font-weight: 600;
