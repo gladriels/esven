@@ -476,6 +476,301 @@ async function buildShareCard(post, { background = "liquid", format = "story", s
   return new Promise(resolve => canvas.toBlob(resolve, CARD_TYPE, CARD_QUALITY));
 }
 
+// ---------------------------------------------------------------------------
+// Text posts: a picture of the post's own feed card
+// ---------------------------------------------------------------------------
+//
+// A text-only post has no photo to build a poster around, so it shares as the
+// card itself, exactly as it looks in the feed. The card is built offscreen
+// from the same markup (text-post-card.js) and the same stylesheet, inside a
+// replica of the feed's container so the grid hands it the same column width
+// and the same breakpoint rules — checked against the live feed at 1280px
+// (321px card, 18px corners) and 375px (174px card, 14px corners). Every box,
+// image, icon and word is then painted at its measured position, scaled so
+// the image comes out 1080px wide in the card's own shape.
+//
+// Painting from the real layout, rather than re-describing the card in canvas
+// code, is deliberate: this stylesheet stacks several layers of overrides on
+// the feed cards, and a hand-copied version would quietly stop matching.
+
+const TEXT_CARD_OUTPUT_W = 1080;
+
+function cssRadiusPx(value, w, h) {
+  const first = String(value).split(" ")[0];
+  if (first.endsWith("%")) return (parseFloat(first) / 100) * Math.min(w, h);
+  return parseFloat(first) || 0;
+}
+
+function isTransparentColor(color) {
+  return !color || color === "transparent" || /^rgba\(.*,\s*0\)$/.test(color);
+}
+
+// Split a CSS value on top-level commas, leaving rgb(...) etc. intact.
+function splitTopLevel(value, sep = ",") {
+  const parts = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (ch === sep && depth === 0) { parts.push(value.slice(start, i).trim()); start = i + 1; }
+  }
+  parts.push(value.slice(start).trim());
+  return parts;
+}
+
+// Computed `linear-gradient(...)` -> a canvas gradient over the box, or null
+// for anything else. Only linear gradients with an angle and plain colour
+// stops are handled; nothing on the card uses more than that.
+function cssLinearGradient(ctx, value, b) {
+  const m = /^linear-gradient\((.*)\)$/.exec(String(value).trim());
+  if (!m) return null;
+  const parts = splitTopLevel(m[1]);
+  let angle = 180; // CSS default: to bottom
+  if (/^-?[\d.]+deg$/.test(parts[0])) angle = parseFloat(parts.shift());
+  else if (/^to /.test(parts[0])) {
+    const dir = parts.shift();
+    angle = { "to top": 0, "to right": 90, "to bottom": 180, "to left": 270 }[dir] ?? 180;
+  }
+  // CSS measures from "up", clockwise, along a line sized so the corners land
+  // exactly on the first and last stops.
+  const rad = angle * Math.PI / 180;
+  const dx = Math.sin(rad), dy = -Math.cos(rad);
+  const len = Math.abs(b.w * dx) + Math.abs(b.h * dy);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  const g = ctx.createLinearGradient(cx - dx * len / 2, cy - dy * len / 2, cx + dx * len / 2, cy + dy * len / 2);
+  parts.forEach((stop, i) => {
+    const pos = /\s([\d.]+)%$/.exec(stop);
+    const color = pos ? stop.slice(0, pos.index).trim() : stop;
+    g.addColorStop(pos ? parseFloat(pos[1]) / 100 : (parts.length > 1 ? i / (parts.length - 1) : 0), color);
+  });
+  return g;
+}
+
+// First shadow of a computed `box-shadow` (colour first, then lengths), or
+// null. Inset shadows aren't drawn — nothing on the card uses one.
+function cssBoxShadow(value) {
+  if (!value || value === "none") return null;
+  const first = splitTopLevel(value)[0];
+  if (/\binset\b/.test(first)) return null;
+  const colorMatch = /^(rgba?\([^)]*\)|#[0-9a-f]+|[a-z]+)/i.exec(first);
+  const color = colorMatch ? colorMatch[1] : "rgba(0,0,0,0.5)";
+  const nums = (first.slice(colorMatch ? colorMatch[0].length : 0).match(/-?[\d.]+px/g) || []).map(parseFloat);
+  const [x = 0, y = 0, blur = 0, spread = 0] = nums;
+  return { color, x, y, blur, spread };
+}
+
+// Inline SVG icons go through an <img> so canvas can draw them. The icons
+// stroke with currentColor, so the computed colour is pinned on the root.
+function loadSvgAsImage(svg, color, pxW, pxH) {
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", String(pxW));
+  clone.setAttribute("height", String(pxH));
+  clone.setAttribute("style", `color: ${color}`);
+  const url = "data:image/svg+xml;charset=utf-8," +
+    encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = url;
+  });
+}
+
+async function buildTextPostCardImage(post) {
+  const host = document.createElement("div");
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = "position:fixed;left:-20000px;top:0;width:100vw;pointer-events:none;";
+  // #board is what the feed's card styles are scoped to. The post page has no
+  // board of its own, so borrowing the id offscreen can't collide, and the
+  // replica is removed as soon as it's been painted.
+  host.innerHTML = `<main id="feed-section"><div id="board" class="board"><div class="ticket-wrap">` +
+    `<a class="ticket ticket-text-only">${textPostBodyHtml(post)}${ticketFooterHtml(post)}</a>` +
+    `</div></div></main>`;
+  // What sits behind the cards in the feed, for the area outside the rounded corners.
+  const bgProbe = document.createElement("div");
+  bgProbe.className = "landing-body";
+  host.appendChild(bgProbe);
+  document.body.appendChild(host);
+
+  try {
+    const card = host.querySelector(".ticket");
+    const pageBg = getComputedStyle(bgProbe).backgroundColor;
+
+    // Faces load lazily per weight and the layout shifts when they land, so
+    // load everything this card uses before measuring anything.
+    if (document.fonts) {
+      const faces = new Set();
+      [card, ...card.querySelectorAll("*")].forEach(el => {
+        const cs = getComputedStyle(el);
+        faces.add(`${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`);
+      });
+      try {
+        await Promise.all([...faces].map(f => document.fonts.load(f)));
+        await document.fonts.ready;
+      } catch (_) {}
+    }
+
+    // The avatar goes through the CORS-enabled loader — drawing the DOM copy
+    // would taint the canvas and block the export.
+    const avatarEl = card.querySelector("img.mini-avatar");
+    let avatarImg = null;
+    if (avatarEl) {
+      try { avatarImg = await loadCardImage(avatarEl.getAttribute("src")); } catch (_) {}
+    }
+
+    const cardRect = card.getBoundingClientRect();
+    const S = TEXT_CARD_OUTPUT_W / cardRect.width;
+    const canvas = document.createElement("canvas");
+    canvas.width = TEXT_CARD_OUTPUT_W;
+    canvas.height = Math.round(cardRect.height * S);
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = pageBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(S, S);
+
+    const cardStyle = getComputedStyle(card);
+    roundRectPath(ctx, 0, 0, cardRect.width, cardRect.height,
+      cssRadiusPx(cardStyle.borderTopLeftRadius, cardRect.width, cardRect.height));
+    ctx.clip();
+    ctx.fillStyle = cardStyle.backgroundColor;
+    ctx.fillRect(0, 0, cardRect.width, cardRect.height);
+
+    const rel = r => ({ x: r.left - cardRect.left, y: r.top - cardRect.top, w: r.width, h: r.height });
+    // The like button is a control, and it would carry the sharer's own
+    // liked state onto someone else's story — so it's left out.
+    const skipped = el => Boolean(el.closest(".like-btn"));
+
+    // Boxes, the avatar and icons, in document order so later ones sit on top.
+    for (const el of card.querySelectorAll("*")) {
+      const tag = el.tagName.toLowerCase();
+      if (skipped(el)) continue;
+      if (tag !== "svg" && el.closest("svg")) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") continue;
+      const b = rel(el.getBoundingClientRect());
+      if (!b.w || !b.h) continue;
+      const radius = cssRadiusPx(cs.borderTopLeftRadius, b.w, b.h);
+      const gradient = cs.backgroundImage !== "none" ? cssLinearGradient(ctx, cs.backgroundImage, b) : null;
+      const hasFill = !isTransparentColor(cs.backgroundColor) || gradient || el === avatarEl;
+
+      // Shadow first, underneath the box. Canvas applies shadow blur and
+      // offset in output pixels regardless of the scale transform, so they
+      // are scaled up by hand to match the CSS.
+      const shadow = el === card ? null : cssBoxShadow(cs.boxShadow);
+      if (shadow && hasFill) {
+        ctx.save();
+        ctx.shadowColor = shadow.color;
+        ctx.shadowBlur = shadow.blur * S;
+        ctx.shadowOffsetX = shadow.x * S;
+        ctx.shadowOffsetY = shadow.y * S;
+        ctx.fillStyle = "#fff";
+        roundRectPath(ctx, b.x - shadow.spread, b.y - shadow.spread, b.w + shadow.spread * 2, b.h + shadow.spread * 2, radius + shadow.spread);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (!isTransparentColor(cs.backgroundColor)) {
+        ctx.fillStyle = cs.backgroundColor;
+        roundRectPath(ctx, b.x, b.y, b.w, b.h, radius);
+        ctx.fill();
+      }
+      if (gradient) {
+        ctx.fillStyle = gradient;
+        roundRectPath(ctx, b.x, b.y, b.w, b.h, radius);
+        ctx.fill();
+      }
+      if (el === avatarEl && avatarImg) {
+        ctx.save();
+        roundRectPath(ctx, b.x, b.y, b.w, b.h, radius);
+        ctx.clip();
+        const { sx, sy, sw, sh } = coverCrop(avatarImg, b.w / b.h, 1);
+        ctx.drawImage(avatarImg, sx, sy, sw, sh, b.x, b.y, b.w, b.h);
+        ctx.restore();
+      }
+      if (tag === "svg") {
+        try {
+          const icon = await loadSvgAsImage(el, cs.color, Math.round(b.w * S), Math.round(b.h * S));
+          ctx.drawImage(icon, b.x, b.y, b.w, b.h);
+        } catch (_) {}
+      }
+
+      // Uniform borders only (the card's own 1px edge is skipped — it's
+      // near-white on white and sits on the clip line anyway).
+      const bw = parseFloat(cs.borderTopWidth) || 0;
+      if (el !== card && bw > 0 && cs.borderTopStyle !== "none" && !isTransparentColor(cs.borderTopColor)) {
+        ctx.save();
+        ctx.lineWidth = bw;
+        ctx.strokeStyle = cs.borderTopColor;
+        roundRectPath(ctx, b.x + bw / 2, b.y + bw / 2, b.w - bw, b.h - bw, Math.max(0, radius - bw / 2));
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Text, word by word at the positions the browser laid out — so wrapping,
+    // spacing and line breaks are the feed's, not a canvas approximation.
+    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || skipped(parent) || parent.closest("svg")) continue;
+      const cs = getComputedStyle(parent);
+      if (cs.display === "none" || cs.visibility === "hidden") continue;
+
+      // Clip to the nearest box that cuts off its own overflow — the
+      // description stops after a few lines, long usernames get cut.
+      let clipEl = null;
+      for (let a = parent; a && a !== card; a = a.parentElement) {
+        if (getComputedStyle(a).overflow !== "visible") { clipEl = a; break; }
+      }
+      const clip = clipEl ? rel(clipEl.getBoundingClientRect()) : null;
+
+      ctx.save();
+      if (clip) {
+        ctx.beginPath();
+        ctx.rect(clip.x, clip.y, clip.w, clip.h);
+        ctx.clip();
+      }
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      ctx.fillStyle = cs.color;
+      ctx.textBaseline = "alphabetic";
+      if ("letterSpacing" in ctx) ctx.letterSpacing = cs.letterSpacing === "normal" ? "0px" : cs.letterSpacing;
+      const transform = t => cs.textTransform === "uppercase" ? t.toUpperCase()
+        : cs.textTransform === "lowercase" ? t.toLowerCase() : t;
+
+      let lastVisible = null;
+      for (const m of node.textContent.matchAll(/\S+/g)) {
+        range.setStart(node, m.index);
+        range.setEnd(node, m.index + m[0].length);
+        const rects = range.getClientRects();
+        if (!rects.length) continue;
+        const r = rel(rects[0]);
+        const word = transform(m[0]);
+        const metrics = ctx.measureText(word);
+        const asc = metrics.fontBoundingBoxAscent ?? metrics.actualBoundingBoxAscent;
+        const desc = metrics.fontBoundingBoxDescent ?? metrics.actualBoundingBoxDescent;
+        const baseline = r.y + (r.h - (asc + desc)) / 2 + asc;
+        ctx.fillText(word, r.x, baseline);
+        if (!clip || r.y + r.h <= clip.y + clip.h + 0.5) lastVisible = { r, baseline };
+      }
+
+      // A line clamp draws its "…" as generated content, not text, so it
+      // has to be added back where the visible text ends.
+      const clamped = clipEl && cs.webkitLineClamp && cs.webkitLineClamp !== "none" &&
+        clipEl.scrollHeight > clipEl.clientHeight + 1;
+      if (clamped && lastVisible) ctx.fillText("…", lastVisible.r.x + lastVisible.r.w, lastVisible.baseline);
+      ctx.restore();
+    }
+
+    return await new Promise(resolve => canvas.toBlob(resolve, CARD_TYPE, CARD_QUALITY));
+  } finally {
+    host.remove();
+  }
+}
+
 function shareCardFileName(post, format = "story") {
   const base = String(post.title || "glares-post")
     .toLowerCase()

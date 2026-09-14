@@ -166,6 +166,15 @@ function wireShareButton(post) {
     label.textContent = "Making poster...";
 
     try {
+      // A text-only post shares as a picture of its own feed card — same look,
+      // same shape — rather than a poster, so none of the poster options apply.
+      if (!post.image_url) {
+        const blob = await buildTextPostCardImage(post);
+        if (!blob) throw new Error("Couldn't render the card.");
+        openSharePreview({ title: post.title, image_url: "" }, blob, { format: "card", cardOnly: true });
+        return;
+      }
+
       const card = {
         title: post.title,
         budget: post.budget,
@@ -187,7 +196,7 @@ function wireShareButton(post) {
   });
 }
 
-function openSharePreview(post, blob, { background, format }) {
+function openSharePreview(post, blob, { background = null, format, cardOnly = false }) {
   let currentBlob = blob;
   let currentUrl = URL.createObjectURL(blob);
   let currentBg = background;
@@ -221,6 +230,7 @@ function openSharePreview(post, blob, { background, format }) {
       <div class="share-preview-shell">
         <img class="share-preview" src="${currentUrl}" alt="Shareable poster for this post">
       </div>
+      ${cardOnly ? "" : `
       <div class="share-seg-row" role="group" aria-label="Poster size">
         <button type="button" class="share-seg-chip${currentFormat === "story" ? " active" : ""}" data-format="story">Story 9:16</button>
         <button type="button" class="share-seg-chip${currentFormat === "post" ? " active" : ""}" data-format="post">Post 4:5</button>
@@ -232,7 +242,7 @@ function openSharePreview(post, blob, { background, format }) {
       </div>` : ""}
       <div class="share-seg-row" role="group" aria-label="Poster background">
         ${backgrounds.map(o => `<button type="button" class="share-seg-chip${o.id === currentBg ? " active" : ""}" data-bg="${o.id}">${o.label}</button>`).join("")}
-      </div>
+      </div>`}
       <div class="share-actions">
         ${canShareFile ? `<button type="button" class="btn" data-share>Share</button>` : ""}
         <button type="button" class="btn btn-ghost" data-save>Save image</button>
