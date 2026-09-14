@@ -166,12 +166,18 @@ function wireShareButton(post) {
     label.textContent = "Making poster...";
 
     try {
-      // A text-only post shares as a picture of its own feed card — same look,
-      // same shape — rather than a poster, so none of the poster options apply.
+      // A text-only post gets its own poster, cut to its content and styled
+      // like a feed text card, so the photo-poster options don't apply.
       if (!post.image_url) {
-        const blob = await buildTextPostCardImage(post);
-        if (!blob) throw new Error("Couldn't render the card.");
-        openSharePreview({ title: post.title, image_url: "" }, blob, { format: "card", cardOnly: true });
+        const blob = await buildTextPostPoster({
+          title: post.title,
+          description: post.description,
+          budget: post.budget,
+          category: post.category,
+          username: post.profiles?.username ?? null
+        });
+        if (!blob) throw new Error("Couldn't render the poster.");
+        openSharePreview({ title: post.title, image_url: "" }, blob, { format: "text", cardOnly: true });
         return;
       }
 

@@ -414,6 +414,34 @@ function checkImageMinSize(file) {
   });
 }
 
+// Line breaks in a name are kept (lyrics, poems), but tidied: Windows line
+// endings unified, trailing spaces on each line dropped, and runs of empty
+// lines squeezed to one so a stray Enter can't open a big gap.
+function normalizePostName(raw) {
+  return String(raw || "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n").map(line => line.replace(/\s+$/, "")).join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function autoGrowTextarea(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  // While the post panel is closed the field measures 0; leave it at its
+  // natural one-row height rather than collapsing it to its padding.
+  if (!el.scrollHeight) return;
+  const border = el.offsetHeight - el.clientHeight;
+  el.style.height = el.scrollHeight + border + "px";
+}
+
+function initNameField() {
+  const field = document.getElementById("req-title");
+  if (!field) return;
+  field.addEventListener("input", () => autoGrowTextarea(field));
+  autoGrowTextarea(field);
+}
+
 function initImagePreview() {
   const fileInput = document.getElementById("req-image-file");
   const preview = document.getElementById("req-image-preview");
@@ -471,7 +499,7 @@ async function initNewRequestPanel() {
       const user = await getCurrentUser();
       if (!user) return;
 
-      const title = document.getElementById("req-title").value.trim();
+      const title = normalizePostName(document.getElementById("req-title").value);
       const description = document.getElementById("req-desc").value.trim();
       const budget = document.getElementById("req-budget").value.trim();
       const category = document.getElementById("req-category").value;
@@ -507,6 +535,7 @@ async function initNewRequestPanel() {
       }
 
       e.target.reset();
+      autoGrowTextarea(document.getElementById("req-title"));
       panel.classList.remove("open");
       loadFeed();
     } finally {
@@ -524,6 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initFeedTabs();
   initNewRequestPanel();
   initImagePreview();
+  initNameField();
   scrollToFeedFromUrl();
 });
 
