@@ -82,35 +82,104 @@ function coverCrop(img, targetRatio, zoom) {
   };
 }
 
-// The photo, zoomed in and blurred out, filling the whole card behind itself.
+// The photo reduced to a few soft fields of its own colour, filling the whole
+// card behind itself.
 //
-// The blur comes from drawing the photo down to a tiny canvas and then
-// blowing it back up — the browser's own bilinear smoothing does the work.
-// ctx.filter would be tidier but Safari only got it in 17.4, and this needs
-// to work on whatever phone someone opens Instagram with.
-function drawLiquidBackdrop(ctx, img, W, H) {
-  const small = document.createElement("canvas");
-  small.width = 42;
-  small.height = Math.max(1, Math.round(42 * (H / W)));
-  const sctx = small.getContext("2d");
-  const { sx, sy, sw, sh } = coverCrop(img, small.width / small.height, 1.6);
-  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, small.width, small.height);
+// Three things keep it clean rather than muddy:
+//  - It's sampled at only 14px wide, so what survives is broad colour, not the
+//    photo's shapes. At 42px the old version kept recognisable edges — a dark
+//    pillar against grass stayed a hard line — which read as a dirty copy of
+//    the photo instead of a wash of its colours.
+//  - It grows in 2x steps rather than one ~25x stretch. A single bilinear
+//    stretch is linear between samples, so every sample shows as a crease;
+//    repeated doublings smooth the creases out.
+//  - Colour is toned on the tiny canvas directly — a little more saturation,
+//    brightness pulled into a band white type reads over — instead of
+//    ctx.filter (Safari only got it in 17.4) plus a heavy flat scrim that
+//    dragged everything toward grey.
+const LIQUID_SAMPLE_W = 14;
+const LIQUID_SAT = 1.3;
+const LIQUID_LUM_LOW = 50;
+const LIQUID_LUM_HIGH = 124;
 
+function drawLiquidBackdrop(ctx, img, W, H) {
+  const sw0 = LIQUID_SAMPLE_W;
+  const sh0 = Math.max(1, Math.round(sw0 * (H / W)));
+  let src = document.createElement("canvas");
+  src.width = sw0;
+  src.height = sh0;
+  const sctx = src.getContext("2d", { willReadFrequently: true });
+  sctx.imageSmoothingEnabled = true;
+  sctx.imageSmoothingQuality = "high";
+  const { sx, sy, sw, sh } = coverCrop(img, sw0 / sh0, 1.25);
+  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw0, sh0);
+
+  let toned = false;
+  try {
+    const frame = sctx.getImageData(0, 0, sw0, sh0);
+    const px = frame.data;
+    for (let i = 0; i < px.length; i += 4) {
+      let r = px[i], g = px[i + 1], b = px[i + 2];
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = lum + (r - lum) * LIQUID_SAT;
+      g = lum + (g - lum) * LIQUID_SAT;
+      b = lum + (b - lum) * LIQUID_SAT;
+      // Shift rather than scale, so dark pixels don't get their noise
+      // multiplied up into odd colours.
+      const shift = LIQUID_LUM_LOW + (lum / 255) * (LIQUID_LUM_HIGH - LIQUID_LUM_LOW) - lum;
+      px[i]     = Math.max(0, Math.min(255, r + shift));
+      px[i + 1] = Math.max(0, Math.min(255, g + shift));
+      px[i + 2] = Math.max(0, Math.min(255, b + shift));
+    }
+    sctx.putImageData(frame, 0, 0);
+    toned = true;
+  } catch (_) {
+    // Tainted canvas — the heavier scrim below keeps type readable instead.
+  }
+
+  // Double up to about half the card's width, then one last short stretch.
+  let cw = sw0, ch = sh0;
+  while (cw * 2 <= W / 2) {
+    const next = document.createElement("canvas");
+    next.width = cw * 2;
+    next.height = ch * 2;
+    const nctx = next.getContext("2d");
+    nctx.imageSmoothingEnabled = true;
+    nctx.imageSmoothingQuality = "high";
+    nctx.drawImage(src, 0, 0, next.width, next.height);
+    src = next;
+    cw = next.width;
+    ch = next.height;
+  }
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  try { ctx.filter = "saturate(1.45)"; } catch (_) {}
-  ctx.drawImage(small, 0, 0, W, H);
+  ctx.drawImage(src, 0, 0, W, H);
   ctx.restore();
 
-  // Scrim: without it, white type lands on whatever brightness the photo
-  // happened to have there and becomes unreadable.
-  const scrim = ctx.createLinearGradient(0, 0, 0, H);
-  scrim.addColorStop(0, "rgba(6,6,8,0.52)");
-  scrim.addColorStop(0.45, "rgba(6,6,8,0.40)");
-  scrim.addColorStop(1, "rgba(6,6,8,0.82)");
-  ctx.fillStyle = scrim;
+  // A soft vignette draws the eye in to the photo; a fade at the bottom keeps
+  // the footer legible. Both are light, since toning already did most of the
+  // work the old flat scrim was doing.
+  const vignette = ctx.createRadialGradient(
+    W / 2, H * 0.42, Math.min(W, H) * 0.25,
+    W / 2, H * 0.42, Math.max(W, H) * 0.75
+  );
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, toned ? "rgba(0,0,0,0.30)" : "rgba(0,0,0,0.55)");
+  ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, W, H);
+
+  const foot = ctx.createLinearGradient(0, H * 0.7, 0, H);
+  foot.addColorStop(0, "rgba(0,0,0,0)");
+  foot.addColorStop(1, toned ? "rgba(0,0,0,0.50)" : "rgba(0,0,0,0.78)");
+  ctx.fillStyle = foot;
+  ctx.fillRect(0, H * 0.7, W, H * 0.3);
+
+  if (!toned) {
+    ctx.fillStyle = "rgba(6,6,8,0.35)";
+    ctx.fillRect(0, 0, W, H);
+  }
+
 }
 
 function roundRectPath(ctx, x, y, w, h, radius) {
