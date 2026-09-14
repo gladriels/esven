@@ -414,10 +414,10 @@ function checkImageMinSize(file) {
   });
 }
 
-// Line breaks in a name are kept (lyrics, poems), but tidied: Windows line
-// endings unified, trailing spaces on each line dropped, and runs of empty
-// lines squeezed to one so a stray Enter can't open a big gap.
-function normalizePostName(raw) {
+// Line breaks in a name or details are kept (lyrics, poems), but tidied:
+// Windows line endings unified, trailing spaces on each line dropped, and
+// runs of empty lines squeezed to one so a stray Enter can't open a big gap.
+function normalizeMultilineText(raw) {
   return String(raw || "")
     .replace(/\r\n?/g, "\n")
     .split("\n").map(line => line.replace(/\s+$/, "")).join("\n")
@@ -435,11 +435,35 @@ function autoGrowTextarea(el) {
   el.style.height = el.scrollHeight + border + "px";
 }
 
-function initNameField() {
-  const field = document.getElementById("req-title");
-  if (!field) return;
-  field.addEventListener("input", () => autoGrowTextarea(field));
-  autoGrowTextarea(field);
+// Enter always means "new line" in the name and details. A browser already
+// does that for a textarea, but some phone keyboards and in-app browsers
+// (Instagram's among them) turn Enter inside a form into "Go" — so the line
+// break is inserted here instead of being left to them, and the keyboard is
+// told to show a return key (enterkeyhint="enter" in the markup).
+function insertLineBreak(field) {
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? start;
+  field.setRangeText("\n", start, end, "end");
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function initLineBreakFields() {
+  for (const id of ["req-title", "req-desc"]) {
+    const field = document.getElementById(id);
+    if (!field) continue;
+    field.addEventListener("keydown", (e) => {
+      // Leave IME composition alone (keyCode 229): Enter there confirms the
+      // composed text rather than typing a newline.
+      if (e.key !== "Enter" || e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault();
+      insertLineBreak(field);
+    });
+  }
+  const title = document.getElementById("req-title");
+  if (title) {
+    title.addEventListener("input", () => autoGrowTextarea(title));
+    autoGrowTextarea(title);
+  }
 }
 
 function initImagePreview() {
@@ -487,6 +511,17 @@ async function initNewRequestPanel() {
 
   document.getElementById("request-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    // A keyboard's "Go" key submits a form with no submit button behind it
+    // (e.submitter is null); tapping "Post request" always sets the button.
+    // So a submitter-less submit while typing in the name or details is
+    // someone pressing Enter for a new line — give them the line, don't post.
+    const typingIn = document.activeElement;
+    if ("submitter" in e && !e.submitter && typingIn && ["req-title", "req-desc"].includes(typingIn.id)) {
+      insertLineBreak(typingIn);
+      return;
+    }
+
     if (isSubmittingRequest) return; // guards against double-tap/double-submit firing this twice
     isSubmittingRequest = true;
 
@@ -499,8 +534,8 @@ async function initNewRequestPanel() {
       const user = await getCurrentUser();
       if (!user) return;
 
-      const title = normalizePostName(document.getElementById("req-title").value);
-      const description = document.getElementById("req-desc").value.trim();
+      const title = normalizeMultilineText(document.getElementById("req-title").value);
+      const description = normalizeMultilineText(document.getElementById("req-desc").value);
       const budget = document.getElementById("req-budget").value.trim();
       const category = document.getElementById("req-category").value;
       const audience = document.getElementById("req-audience").value;
@@ -553,7 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initFeedTabs();
   initNewRequestPanel();
   initImagePreview();
-  initNameField();
+  initLineBreakFields();
   scrollToFeedFromUrl();
 });
 

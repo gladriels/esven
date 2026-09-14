@@ -253,7 +253,25 @@ textarea { resize: vertical; min-height: 70px; }
 /* The post name is a textarea so Enter starts a new line — people post song
    lyrics and poems, which need their line breaks. It still starts as a single
    line and grows with what's typed (see autoGrowTextarea in app.js). */
-#req-title { min-height: 0; resize: none; overflow: hidden; line-height: 1.45; }
+/* flex: none matters on phones: there each .field-row is a flex *column*,
+   and the shared `flex: 1` (which lets inputs share a row on desktop) turns
+   into a height rule — it pinned this box at one line, ignoring the height
+   autoGrowTextarea sets, and overflow: hidden then made every line after the
+   first invisible. */
+#req-title { flex: none; min-height: 0; resize: none; overflow: hidden; line-height: 1.45; }
+
+/* Names and details keep their typed line breaks everywhere they're shown,
+   compact previews included — lyrics and poems are posted line by line and
+   read wrong squashed into a paragraph. (.ticket-text-title, the post page
+   title and the reel title set this on their own rules.) */
+#board .ticket-title,
+.trending-title,
+.ig-grid-item-name,
+.ticket-text-desc,
+.request-detail p,
+.reel-item-desc,
+.solved-title,
+.shop-title { white-space: pre-line; }
 
 .field-hint {
   font-size: 11px;
