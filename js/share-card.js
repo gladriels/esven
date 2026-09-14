@@ -153,6 +153,22 @@ function wrapLines(ctx, text, maxWidth) {
 // long name ends up small instead of truncated.
 const TITLE_SIZES = [112, 104, 96, 88, 80, 72, 64, 56, 48, 42, 36, 32, 28];
 
+// fitTitle alone only shrinks a name when it physically has to — it picks the
+// largest size that still fits the line budget, so a 48-character name came
+// out at the same 112px as a 7-character one, just wrapped onto three lines.
+// Length drives the size directly instead, so a long name actually reads as
+// small; fitTitle then still steps it down further if it needs to.
+function titleCapForLength(text) {
+  const len = String(text || "").trim().length;
+  if (len <= 12) return 112;
+  if (len <= 22) return 96;
+  if (len <= 34) return 78;
+  if (len <= 50) return 62;
+  if (len <= 75) return 50;
+  if (len <= 110) return 40;
+  return 32;
+}
+
 function fitTitle(ctx, text, maxWidth, maxLines, maxSize) {
   const ramp = TITLE_SIZES.filter(s => s <= (maxSize || TITLE_SIZES[0]));
   for (const size of ramp) {
@@ -260,8 +276,12 @@ async function buildShareCard(post, { background = "liquid", format = "story" } 
   const hasAuthor = Boolean(post.username);
 
   // The 4:5 card has far less height to spend, so it starts the title ramp
-  // lower — otherwise a big title would crowd the photo it sits on.
-  const maxTitleSize = format === "post" ? 88 : 112;
+  // lower — otherwise a big title would crowd the photo it sits on. Whichever
+  // of that and the length-based cap is smaller wins.
+  const maxTitleSize = Math.min(
+    format === "post" ? 88 : 112,
+    titleCapForLength(post.title)
+  );
   const GAP_TAG = 20;
   const OVERLAY_PAD = 44;
 
