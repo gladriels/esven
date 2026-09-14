@@ -30,7 +30,7 @@ async function ensureCardFonts() {
     "800 104px Inter",
     "700 48px Inter",
     "500 34px Inter",
-    "400 34px Inter",
+    "400 42px Inter",
     "600 26px 'IBM Plex Mono'",
     "600 56px 'Cormorant Garamond'"
   ];
@@ -500,6 +500,34 @@ const TEXT_POSTER_FOOT_H = 150;
 const TEXT_POSTER_MIN_H = 640;
 const TEXT_POSTER_DESC_LINES = 8;
 
+// On a text poster the name is the whole content, so it isn't held down by
+// the length caps the photo posters use (those keep a name from covering the
+// photo). It gets the largest size at which it fits the width:
+//  - Typed line breaks are the lines. A name with breaks gets as many lines
+//    as it has, so lyrics keep their shape instead of re-wrapping.
+//  - A name without breaks may wrap onto up to three lines.
+//  - The block is kept under TEXT_POSTER_NAME_MAX_H so a long, many-line post
+//    can't turn the poster into a scroll; it shrinks instead.
+// If even the smallest size needs extra wrapping, every word is kept rather
+// than cutting the name off.
+const TEXT_POSTER_NAME_SIZES = [180, 164, 150, 138, 126, 116, 106, 96, 88, 80, 72, 64, 58, 52, 46, 40];
+const TEXT_POSTER_NAME_MAX_H = 1500;
+const TEXT_POSTER_NAME_LINE = 1.1;
+
+function fitTextPosterName(ctx, text, width) {
+  const typed = text.split("\n").length;
+  const budget = typed > 1 ? typed : 3;
+  for (const size of TEXT_POSTER_NAME_SIZES) {
+    ctx.font = `800 ${size}px Inter, sans-serif`;
+    const lines = wrapLines(ctx, text, width);
+    const blockH = lines.length * size * TEXT_POSTER_NAME_LINE;
+    if (lines.length <= budget && blockH <= TEXT_POSTER_NAME_MAX_H) return { size, lines };
+  }
+  const size = TEXT_POSTER_NAME_SIZES[TEXT_POSTER_NAME_SIZES.length - 1];
+  ctx.font = `800 ${size}px Inter, sans-serif`;
+  return { size, lines: wrapLines(ctx, text, width) };
+}
+
 async function buildTextPostPoster(post) {
   await ensureCardFonts();
 
@@ -511,18 +539,15 @@ async function buildTextPostPoster(post) {
   const descText = String(post.description || "").trim();
   const hasTag = Boolean(post.category);
 
-  // Lyrics and poems keep their typed line breaks, so a name is allowed as
-  // many lines as it has; fitTitle shrinks it if those lines also wrap.
   let title = null, titleLineH = 0;
   if (titleText) {
-    const typedLines = titleText.split("\n").length;
-    title = fitTitle(measure, titleText, contentW, Math.min(14, Math.max(4, typedLines)), titleCapForLength(titleText));
-    titleLineH = Math.round(title.size * 1.12);
+    title = fitTextPosterName(measure, titleText, contentW);
+    titleLineH = Math.round(title.size * TEXT_POSTER_NAME_LINE);
   }
 
   let descLines = [];
-  const DESC_FONT = "400 34px Inter, sans-serif";
-  const DESC_LINE_H = 52;
+  const DESC_FONT = "400 42px Inter, sans-serif";
+  const DESC_LINE_H = 62;
   if (descText) {
     measure.font = DESC_FONT;
     descLines = wrapLines(measure, descText, contentW);
@@ -564,7 +589,7 @@ async function buildTextPostPoster(post) {
     ctx.font = `800 ${title.size}px Inter, sans-serif`;
     for (const line of title.lines) {
       y += titleLineH;
-      ctx.fillText(line, TEXT_POSTER_PAD, y - Math.round(titleLineH * 0.22));
+      ctx.fillText(line, TEXT_POSTER_PAD, y - Math.round(titleLineH * 0.2));
     }
   }
 
@@ -574,7 +599,7 @@ async function buildTextPostPoster(post) {
     ctx.font = DESC_FONT;
     for (const line of descLines) {
       y += DESC_LINE_H;
-      ctx.fillText(line, TEXT_POSTER_PAD, y - 14);
+      ctx.fillText(line, TEXT_POSTER_PAD, y - 17);
     }
   }
 
