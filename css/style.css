@@ -633,22 +633,30 @@ textarea { resize: vertical; min-height: 70px; }
   position: relative;
 }
 
+/* The box hugs the photo instead of being a fixed frame the photo is fitted
+   into. It used to be `width: 100%` + `object-fit: contain` over a near-black
+   background, which letterboxed every photo whose shape didn't match the
+   frame — a portrait post painted 305x528 of pixels inside a 305x568 element
+   and the leftover 20px top and bottom showed as black bars. Sizing from the
+   image's own dimensions (capped by the column width and 70vh) means the
+   element is always exactly the size of the pixels, so there's no leftover
+   area for a background to show through at any aspect ratio. */
 .detail-image {
   position: relative;
-  width: 100%;
-  max-height: 70vh;
+  width: fit-content;
+  max-width: 100%;
   border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 18px;
-  background: #0b0b0a;
+  margin: 0 auto 18px;
+  background: transparent;
   display: flex;
 }
 .detail-image > img {
-  width: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
   max-height: 70vh;
-  object-fit: contain;
   display: block;
-  margin: 0 auto;
 }
 
 /* ---------- Sections row (audience: Him/Her/Unisex) ---------- */
