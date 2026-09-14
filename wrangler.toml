@@ -1,0 +1,8 @@
+# Cloudflare Pages configuration. See CLOUDFLARE.md for setup.
+name = "glares"
+# The public site is copied here by scripts/build-site.mjs, so server code,
+# migrations and docs are never published as static files.
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"
+# web-push (used by functions/api/notify-message.js) is a Node library.
+compatibility_flags = ["nodejs_compat"]

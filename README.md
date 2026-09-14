@@ -6,7 +6,7 @@ recommendations, requester picks a favorite.
 ## Stack
 - Frontend: plain HTML/CSS/vanilla JS (no build step, no framework)
 - Backend: Supabase (Postgres + Auth + Storage), free tier
-- Hosting: Vercel
+- Hosting: Cloudflare Pages — see CLOUDFLARE.md (Vercel config kept until the switch is confirmed)
 
 ## 1. Create a Supabase project
 1. Go to https://supabase.com → New Project (free tier is fine)
@@ -134,7 +134,8 @@ npx serve .
 always serve it over http://localhost.)
 
 ## 5. Deploy
-Push to GitHub, import into Vercel, no build command needed — it's static files.
+See CLOUDFLARE.md. The site itself is still plain static files; a one-line build step
+copies them into `dist/` so server code isn't published alongside them.
 
 ## File map
 - `index.html` — feed of open requests + "post a request" form
