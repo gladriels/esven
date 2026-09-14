@@ -93,7 +93,6 @@ done from here.
    message-notification webhook (`public.notify_message_webhook()`), which
    currently calls the Vercel address.
 8. **Update the Instagram bio link** to `https://<your-address>/?feed=1`.
-9. **Category cover images** (For Him, For Her, Unisex, Accessories, Places)
-   are hosted on Vercel's file storage — see `css/style.css`. Move them into
-   `images/` before closing the Vercel account.
+9. ~~Category cover images~~ — done: the five covers were copied from Vercel's
+   file storage into `images/`, so nothing on the site depends on Vercel.
 10. Once everything checks out, the Vercel project and the `api/` folder can go.
