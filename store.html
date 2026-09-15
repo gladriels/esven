@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Store — Glares</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .store-hero {
+    background: #0B0B0A;
+    color: #fff;
+    border-radius: 18px;
+    padding: 36px 28px;
+    margin-bottom: 28px;
+  }
+  .store-hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.55);
+    margin-bottom: 10px;
+  }
+  .store-hero h1 {
+    font-family: var(--display);
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .store-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .product-card {
+    display: block;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .product-card-image {
+    position: relative;
+    aspect-ratio: 3/4;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--pill);
+    margin-bottom: 10px;
+  }
+  .product-card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .product-card-soldout {
+    position: absolute; inset: 0;
+    background: rgba(11,11,10,.55);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .product-card-name { font-weight: 700; font-size: 14px; margin: 0 0 2px; }
+  .product-card-price { font-family: var(--mono); font-size: 13px; color: var(--accent); margin: 0; }
+
+  .admin-add-product-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 600px) {
+    .store-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .store-hero { padding: 26px 20px; border-radius: 14px; }
+    .store-hero h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body class="profile-page">
+
+<div class="header-wrap">
+  <header class="site-header">
+    <a href="index.html" class="logo">Glares</a>
+    <div id="auth-bar"></div>
+  </header>
+</div>
+
+<main>
+  <a href="index.html#feed-section" class="back-link">&larr; back to feed</a>
+
+  <div class="store-hero">
+    <div class="store-hero-eyebrow">Store</div>
+    <h1>Official Glares merch.</h1>
+  </div>
+
+  <button type="button" class="btn btn-ghost admin-add-product-btn" id="admin-add-product-btn" style="display:none;">
+    + Add product
+  </button>
+
+  <div id="store-grid" class="store-grid">
+    <p class="empty-state">Loading...</p>
+  </div>
+</main>
+
+<div class="new-request-panel" id="add-product-panel">
+  <section class="new-request">
+    <button class="panel-close" id="close-add-product-btn">&times;</button>
+    <h2>Add a product</h2>
+    <form id="add-product-form">
+      <div class="field-row">
+        <input type="text" id="prod-name" placeholder="Product name" required />
+      </div>
+      <div class="field-row">
+        <textarea id="prod-desc" placeholder="Description"></textarea>
+      </div>
+      <div class="field-row">
+        <input type="number" id="prod-price" placeholder="Price (₮)" min="1" required />
+        <input type="number" id="prod-stock" placeholder="Stock (blank = unlimited)" min="0" />
+      </div>
+      <div class="field-row">
+        <input type="text" id="prod-sizes" placeholder="Sizes, comma separated (optional) e.g. S, M, L, XL" />
+      </div>
+      <div class="field-row">
+        <label class="upload-label" for="prod-image-file">
+          <span id="prod-upload-label-text">+ Add a photo</span>
+        </label>
+        <input type="file" id="prod-image-file" accept="image/*" style="display:none;" required />
+      </div>
+      <img id="prod-image-preview" style="display:none; max-width: 100%; border-radius: 10px; margin-top: 8px;" />
+      <button type="submit" class="btn">Add product</button>
+    </form>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/image-utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/push-config.js"></script>
+<script src="js/push.js"></script>
+<script src="js/messages-badge.js"></script>
+<script src="js/store.js"></script>
+</body>
+</html>
