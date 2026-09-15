@@ -2350,14 +2350,14 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   position: relative;
   max-width: 920px;
   margin: 20px auto;
-  background: #0B0B0A;
-  border: 1px solid #2a2a2a;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 40px 28px;
   text-decoration: none;
   transition: transform 0.25s ease, border-color 0.25s ease;
 }
-.store-banner:hover { transform: translateY(-2px); border-color: #444; }
+.store-banner:hover { transform: translateY(-2px); border-color: var(--ink); }
 .store-banner-arrow {
   position: absolute;
   top: 18px;
@@ -2365,39 +2365,29 @@ body:not(.profile-page) header.site-header .logo, body:not(.profile-page) header
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid #fff;
+  border: 1px solid var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--ink);
 }
 .store-banner-arrow svg { width: 16px; height: 16px; }
-.store-banner-eyebrow {
-  display: block;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: #8a8a86;
-  margin-bottom: 10px;
-}
 .store-banner-title {
   display: block;
   font-family: var(--display);
   font-weight: 800;
-  font-size: 32px;
-  letter-spacing: -0.02em;
-  color: #fff;
-  max-width: 420px;
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
 }
 .store-banner-sub {
   display: block;
-  font-size: 13px;
-  color: #8a8a86;
-  margin-top: 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-top: 10px;
 }
 @media (max-width: 600px) {
-  .store-banner { margin: 14px auto; padding: 28px 20px; border-radius: 14px; }
-  .store-banner-title { font-size: 24px; }
+  .store-banner { margin: 14px auto; padding: 30px 20px; border-radius: 14px; }
+  .store-banner-title { font-size: 38px; }
 }
